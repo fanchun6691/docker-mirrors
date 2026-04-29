@@ -1,0 +1,38 @@
+name: jupyterlabai
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 释放 GitHub 空间
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo apt-get clean
+          df -h
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Build Docker image
+        run: |
+          docker build -f Dockerfile.persist -t jupyter-ai-persist:latest .
+
+
+      - name: Save image as tarball
+        run: |
+          docker save jupyter-ai-persist:latest > jupyter-ai-persist-image.tar && \
+          gzip jupyter-ai-persist-image.tar          # 压缩节省空间
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jupyter-ai-persist-image
+          path: jupyter-ai-persist-image.tar.gz
+          retention-days: 1              # 根据需求调整保留天数
