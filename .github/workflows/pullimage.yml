@@ -1,0 +1,32 @@
+name: pullimages
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 释放 GitHub 空间
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo apt-get clean
+          df -h
+      - name: 拉取官方镜像
+        run: docker pull ollama/ollama:0.6.2
+
+      - name: 导出为 tar 镜像文件
+        run: docker save ollama/ollama:0.6.2 | gzip > ollama.tar.gz
+
+      - name: 上传为可下载产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: ollama
+          path: ollama.tar.gz
+
+      - name: 生成直接下载链接
+        run: |
+          echo "✅ 镜像打包完成！"
+          echo "👉 直接下载：https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/1"
