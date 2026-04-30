@@ -317,16 +317,43 @@ EOF
 
 chmod +x /home/jovyan/start_jupyter_ai.sh
 
-echo "🧹 清理缓存..."
+echo "🧹 清理缓存和临时文件..."
+
+# pip 清理
 pip cache purge
+pip cache remove "*" 2>/dev/null || true
+
+# conda 清理
 conda clean -afy
+conda clean -t -y
+conda clean -p -y
+
+# 删除缓存目录
 rm -rf /home/jovyan/.cache/pip
 rm -rf /home/jovyan/.cache/conda
+rm -rf /home/jovyan/.cache/huggingface
+rm -rf /home/jovyan/.cache/matplotlib
+rm -rf /home/jovyan/.ipython
+
+# 删除临时文件
+rm -rf /tmp/pip-*
+rm -rf /tmp/tmp*
+rm -rf /tmp/*.log
+rm -rf /var/tmp/*
+
+# 删除 Python 字节码文件
+find /opt/conda/envs/${CONDA_ENV_NAME} -name "*.pyc" -delete 2>/dev/null || true
+find /opt/conda/envs/${CONDA_ENV_NAME} -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+
+# 删除 npm 缓存（如果有）
+npm cache clean --force 2>/dev/null || true
 
 # 删除误写入工作目录的垃圾文件
 echo "🧹 清理垃圾文件..."
 rm -f /home/jovyan/=* 2>/dev/null
 rm -f /home/jovyan/work/=* 2>/dev/null
+
+echo "✅ 清理完成"
 
 # ============================================
 # 验证
