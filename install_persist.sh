@@ -56,6 +56,11 @@ pip install \
     ipykernel>=6.0.0 \
     ipywidgets>=8.0.0 
 
+# 重建 JupyterLab 确保前端扩展生效
+echo " 重建 JupyterLab 扩展..."
+jupyter lab build --minimize=False
+echo " Jupyter AI 核心包安装完成"
+
 # 新增这一行，用 conda 安装 nb_conda_kernels
 pip install --force-reinstall setuptools==69.0.2
 conda install -n ${CONDA_ENV_NAME} -c conda-forge nb_conda_kernels=2.3.1 -y
@@ -123,22 +128,6 @@ pip install \
     jupyterlab-git>=0.45.0 \
     jupyterlab-lsp>=5.0.0
 
-# ============================================
-# 安装 Jupyter AI 前端扩展（用于侧边栏聊天界面）
-# ============================================
-echo "📦 安装 Jupyter AI 前端扩展..."
-
-# 安装前端扩展
-jupyter labextension install @jupyter-ai/extension --no-build
-
-# 重建 JupyterLab
-echo "🔨 重建 JupyterLab..."
-jupyter lab build --dev-build=False --minimize=False
-
-# 清理缓存
-jlpm cache clean || true
-
-echo "✅ Jupyter AI 前端扩展安装完成"
 
 # ============================================
 # 注册 Jupyter Kernel
@@ -323,6 +312,11 @@ pip cache purge
 conda clean -afy
 rm -rf /home/jovyan/.cache/pip
 rm -rf /home/jovyan/.cache/conda
+
+# 删除误写入工作目录的垃圾文件
+echo "🧹 清理垃圾文件..."
+rm -f /home/jovyan/=* 2>/dev/null
+rm -f /home/jovyan/work/=* 2>/dev/null
 
 # ============================================
 # 验证
