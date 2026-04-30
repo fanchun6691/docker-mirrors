@@ -508,60 +508,6 @@ os.environ['HUGGINGFACEHUB_API_TOKEN'] = 'hf_your-token'
 %reload_ext jupyter_ai_magics
 ```
 
-#### 方式二：使用 .env 文件
-
-```python
-# 创建 .env 文件
-%%writefile /home/jovyan/.env
-OPENAI_API_KEY=sk-your-openai-key
-ANTHROPIC_API_KEY=sk-ant-your-key
-GOOGLE_API_KEY=your-google-key
-HUGGINGFACEHUB_API_TOKEN=hf_your-token
-COHERE_API_KEY=your-cohere-key
-AI21_API_KEY=your-ai21-key
-
-# 加载 .env 文件
-from dotenv import load_dotenv
-load_dotenv('/home/jovyan/.env')
-
-# 重新加载扩展
-%reload_ext jupyter_ai_magics
-```
-
-#### 方式三：Docker 运行时注入（推荐生产环境）
-
-**使用 `-e` 参数：**
-
-```bash
-docker run -d \
-  -p 8881:8881 \
-  -e OPENAI_API_KEY="sk-your-key" \
-  -e ANTHROPIC_API_KEY="sk-ant-your-key" \
-  -e GOOGLE_API_KEY="your-google-key" \
-  -e HUGGINGFACEHUB_API_TOKEN="hf_your-token" \
-  --name jupyter-ai \
-  jupyter-ai:latest
-```
-
-**使用 .env 文件：**
-
-```bash
-# 创建 .env 文件
-cat > .env << EOF
-OPENAI_API_KEY=sk-your-openai-key
-ANTHROPIC_API_KEY=sk-ant-your-key
-GOOGLE_API_KEY=your-google-key
-HUGGINGFACEHUB_API_TOKEN=hf_your-token
-EOF
-
-# 运行容器
-docker run -d \
-  -p 8881:8881 \
-  --env-file .env \
-  --name jupyter-ai \
-  jupyter-ai:latest
-```
-
 ### 调用示例
 
 ```python
