@@ -124,6 +124,23 @@ pip install \
     jupyterlab-lsp>=5.0.0
 
 # ============================================
+# 安装 Jupyter AI 前端扩展（用于侧边栏聊天界面）
+# ============================================
+echo "📦 安装 Jupyter AI 前端扩展..."
+
+# 安装前端扩展
+jupyter labextension install @jupyter-ai/extension --no-build
+
+# 重建 JupyterLab
+echo "🔨 重建 JupyterLab..."
+jupyter lab build --dev-build=False --minimize=False
+
+# 清理缓存
+jlpm cache clean || true
+
+echo "✅ Jupyter AI 前端扩展安装完成"
+
+# ============================================
 # 注册 Jupyter Kernel
 # ============================================
 echo "🎯 注册 Jupyter Kernel..."
