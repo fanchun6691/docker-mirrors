@@ -194,6 +194,8 @@ c.ServerApp.root_dir = '/home/jovyan'
 c.ServerApp.trust_xheaders = True
 
 c.ContentsManager.allow_hidden = True
+c.FileCheckpoints.checkpoint_dir = ''
+c.FileContentsManager.checkpoints_kwargs = {'checkpoint_dir': None}
 
 # Jupyter AI 配置
 c.JupyterAI.model_provider_id = 'ollama'
@@ -293,6 +295,8 @@ echo "JupyterLab: http://localhost:8881"
 echo "Ollama 服务器: \${OLLAMA_HOST}"
 echo "默认模型: \${OLLAMA_DEFAULT_MODEL}"
 echo "=========================================="
+echo "=========启动 jupyter lab========="
+exec jupyter lab --config=/home/jovyan/.jupyter/jupyter_lab_config.py
 EOF
 
 chmod +x /home/jovyan/start_jupyter_ai.sh
