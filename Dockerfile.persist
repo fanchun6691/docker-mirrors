@@ -1,18 +1,83 @@
 # Dockerfile.persist
 FROM jupyter/scipy-notebook:python-3.10
 
-# 设置环境变量（修正 IP 和模型）
+# 设置环境变量
+# ============================================
+# Ollama 配置（本地/内网部署）
+# ============================================
 ENV JUPYTER_ENABLE_LAB=yes \
+    CONDA_ENV_NAME=ai_env \
+    OLLAMA_HOST=http://192.168.112.136:11434 \
     OLLAMA_BASE_URL=http://192.168.112.136:11434 \
     OLLAMA_DEFAULT_MODEL=qwen2.5-coder:7b-q4 \
-    HF_ENDPOINT=https://hf-mirror.com \
-    CONDA_ENV_NAME=ai_env
+    HF_ENDPOINT=https://hf-mirror.com
+
+# ============================================
+# OpenAI 配置（可选）
+# ============================================
+ENV OPENAI_API_KEY="" \
+    OPENAI_BASE_URL="https://api.openai.com/v1" \
+    OPENAI_ORG_ID=""
+
+# ============================================
+# Anthropic Claude 配置（可选）
+# ============================================
+ENV ANTHROPIC_API_KEY=""
+
+# ============================================
+# Google Gemini 配置（可选）
+# ============================================
+ENV GOOGLE_API_KEY=""
+
+# ============================================
+# Hugging Face 配置（可选）
+# ============================================
+ENV HUGGINGFACEHUB_API_TOKEN="" \
+    HF_HOME="/home/jovyan/.cache/huggingface"
+
+# ============================================
+# Cohere 配置（可选）
+# ============================================
+ENV COHERE_API_KEY=""
+
+# ============================================
+# AI21 Labs 配置（可选）
+# ============================================
+ENV AI21_API_KEY=""
+
+# ============================================
+# AWS Bedrock / SageMaker 配置（可选）
+# ============================================
+ENV AWS_ACCESS_KEY_ID="" \
+    AWS_SECRET_ACCESS_KEY="" \
+    AWS_DEFAULT_REGION="us-east-1"
+
+# ============================================
+# Azure OpenAI 配置（可选）
+# ============================================
+ENV AZURE_OPENAI_API_KEY="" \
+    AZURE_OPENAI_ENDPOINT="" \
+    AZURE_OPENAI_DEPLOYMENT_NAME=""
+
+# ============================================
+# 本地部署的 OpenAI 兼容服务（LM Studio / LocalAI / vLLM）
+# ============================================
+ENV LOCAL_OPENAI_API_KEY="sk-no-key-required" \
+    LOCAL_OPENAI_BASE_URL="http://localhost:1234/v1"
+
+# ============================================
+# 模型参数默认值（可选）
+# ============================================
+ENV OLLAMA_TEMPERATURE="0.7" \
+    OLLAMA_TOP_P="0.9" \
+    OLLAMA_REPEAT_PENALTY="1.1" \
+    MAX_TOKENS="2048"
 
 # 切换到 root 用户安装系统依赖
 USER root
 
 # 使用清华源
-RUN     apt-get update && \
+RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         nodejs \
         npm \
