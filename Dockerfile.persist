@@ -90,8 +90,14 @@ RUN apt-get update && \
     # 安装 Node.js 20.x
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    # ============================================
+    # 清理所有下载的临时文件
+    # ============================================
+    rm -f /tmp/nodesource_setup.sh && \
+    rm -f /etc/apt/sources.list.d/nodesource.list && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -rf /var/cache/apt/archives/*.deb && \
+    apt-get clean
 
 # 切换回 jovyan 用户进行 conda 环境配置
 USER jovyan
