@@ -30,6 +30,16 @@ conda activate ${CONDA_ENV_NAME}
 # 升级 pip
 pip install --upgrade pip setuptools wheel
 
+# ============================================
+# 安装 Node.js 20（使用 conda，避免 apt 冲突）
+# ============================================
+echo "📦 安装 Node.js 20..."
+conda install -n ${CONDA_ENV_NAME} -c conda-forge nodejs=20 -y
+
+# 确保环境变量正确
+export PATH=/opt/conda/envs/${CONDA_ENV_NAME}/bin:$PATH
+node --version
+
 
 # ============================================
 # 安装 Python 包（持久化在镜像中）
