@@ -76,16 +76,18 @@ ENV OLLAMA_TEMPERATURE="0.7" \
 # 切换到 root 用户安装系统依赖
 USER root
 
-# 使用清华源
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        npm \
         vim \
         curl \
         wget \
         git \
         build-essential \
         ca-certificates && \
+    # 关键：先卸载旧版 Node.js
+    apt-get remove -y nodejs npm libnode-dev || true && \
+    apt-get autoremove -y && \
+    # 安装 Node.js 20.x
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
     apt-get clean && \
