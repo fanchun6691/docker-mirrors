@@ -197,6 +197,7 @@ mkdir -p ${CONFIG_DIR}
 # JupyterLab 配置
 cat > ${CONFIG_DIR}/jupyter_lab_config.py << EOF
 import os
+from jupyter_server.services.contents.checkpoints import GenericAsyncCheckpoints
 
 # 从环境变量获取配置（无则使用默认值）
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://192.168.112.136:11434")
@@ -215,8 +216,9 @@ c.ServerApp.root_dir = '/home/jovyan'
 c.ServerApp.trust_xheaders = True
 
 c.ContentsManager.allow_hidden = True
-# 【关键】安全禁用检查点，不触发500报错
-c.ContentsManager.checkpoints_class = None
+
+# 兼容 Jupyter Server 2.0+
+c.ContentsManager.checkpoints_class = GenericAsyncCheckpoints
 c.ContentsManager.checkpoints_kwargs = {}
 
 # Jupyter AI 配置
