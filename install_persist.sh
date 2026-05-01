@@ -196,6 +196,8 @@ mkdir -p ${CONFIG_DIR}
 
 # JupyterLab 配置
 cat > ${CONFIG_DIR}/jupyter_lab_config.py << EOF
+import os
+
 # 从环境变量获取配置（无则使用默认值）
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://192.168.112.136:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_DEFAULT_MODEL", "qwen2.5-coder:7b-q4")
@@ -213,7 +215,7 @@ c.ServerApp.root_dir = '/home/jovyan'
 c.ServerApp.trust_xheaders = True
 
 c.ContentsManager.allow_hidden = True
-# ✅ 正确关闭检查点，不报错
+# 【关键】安全禁用检查点，不触发500报错
 c.ContentsManager.checkpoints_class = None
 c.ContentsManager.checkpoints_kwargs = {}
 
