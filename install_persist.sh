@@ -197,7 +197,7 @@ mkdir -p ${CONFIG_DIR}
 # JupyterLab 配置
 cat > ${CONFIG_DIR}/jupyter_lab_config.py << EOF
 # 从环境变量获取配置（无则使用默认值）
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://192.168.112.136:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_DEFAULT_MODEL", "qwen2.5-coder:7b-q4")
 # JupyterLab 持久化配置
 c.ServerApp.allow_root = True
