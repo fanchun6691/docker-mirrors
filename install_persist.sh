@@ -61,14 +61,18 @@ fi
 # 安装 Jupyter AI 扩展（必需）
 # Jupyter 核心包
 pip install \
-    jupyter-ai>=2.0.0 \
-    jupyter-ai-magics>=2.0.0 \
+    jupyter-ai ==3.0.0 \
+    jupyter-ai-magics==3.0.0 \
     ipykernel>=6.0.0 \
     ipywidgets>=8.0.0 
 
 # 重建 JupyterLab 确保前端扩展生效
 echo " 重建 JupyterLab 扩展..."
 jupyter lab build --minimize=False
+echo " Jupyter AI 核心包安装完成"
+# 验证扩展安装
+echo " 验证扩展列表:"
+jupyter labextension list
 echo " Jupyter AI 核心包安装完成"
 
 # 新增这一行，用 conda 安装 nb_conda_kernels
@@ -98,7 +102,7 @@ pip install \
     langchain-openai>=0.2.0 \
     langchain-anthropic>=0.2.0 \
     langchain-google-genai>=2.0.0 \
-    langchain-ollama>=0.2.0
+
 pip install --force-reinstall  google-ai-generativelanguage==0.7.0 
 # AI 模型工具
 pip install \
@@ -214,7 +218,8 @@ c.ServerApp.root_dir = '/home/jovyan'
 c.ServerApp.trust_xheaders = True
 
 c.ContentsManager.allow_hidden = True
-
+# 避免 MCP 端口冲突
+c.MCPExtensionApp.mcp_port = 3002
 # Jupyter AI 配置
 # 核心配置（自动拼接）
 c.JupyterAI.model_provider_id = "ollama"
@@ -301,6 +306,13 @@ source /opt/conda/etc/profile.d/conda.sh
 # 激活 AI 环境（用于 Python 包和扩展）
 conda activate ${CONDA_ENV_NAME}
 
+# 清理端口占用，避免端口冲突
+echo "🧹 清理残留进程和端口..."
+pkill -f "jupyter" 2>/dev/null || true
+lsof -ti :8881 | xargs kill -9 2>/dev/null || true
+lsof -ti :3001 | xargs kill -9 2>/dev/null || true
+sleep 2
+
 # 设置环境变量
 export JUPYTER_ENABLE_LAB=yes
 export OLLAMA_HOST=\${OLLAMA_HOST:-${OLLAMA_EXTERNAL_URL}}
@@ -378,9 +390,10 @@ echo "=========================================="
 echo "✅ 安装完成！"
 echo "=========================================="
 echo "环境架构:"
-echo "  - Base 环境: JupyterLab 4 (预装)"
-echo "  - AI 环境: Python 包 + Jupyter AI 扩展"
-echo "  - Ollama: ${OLLAMA_EXTERNAL_URL}"
+echo "  - Jupyter AI 版本: 3.0.0"
+echo "  - Ollama 支持: 内置（无需额外安装）"
+echo "  - Ollama 服务器: ${OLLAMA_EXTERNAL_URL}"
+echo "  - 默认模型: ${OLLAMA_DEFAULT_MODEL}"
 echo "=========================================="
 
 # 测试 Ollama 连接
