@@ -196,6 +196,9 @@ mkdir -p ${CONFIG_DIR}
 
 # JupyterLab 配置
 cat > ${CONFIG_DIR}/jupyter_lab_config.py << EOF
+# 从环境变量获取配置（无则使用默认值）
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_DEFAULT_MODEL", "qwen2.5-coder:7b-q4")
 # JupyterLab 持久化配置
 c.ServerApp.allow_root = True
 c.ServerApp.ip = '0.0.0.0'
@@ -210,14 +213,20 @@ c.ServerApp.root_dir = '/home/jovyan'
 c.ServerApp.trust_xheaders = True
 
 c.ContentsManager.allow_hidden = True
-c.FileCheckpoints.checkpoint_dir = ''
-c.FileContentsManager.checkpoints_kwargs = {'checkpoint_dir': None}
+# ✅ 正确关闭检查点，不报错
+c.ContentsManager.checkpoints_class = None
+c.ContentsManager.checkpoints_kwargs = {}
 
 # Jupyter AI 配置
-c.JupyterAI.model_provider_id = 'ollama'
-c.JupyterAI.model_id = '${OLLAMA_DEFAULT_MODEL}'
-c.JupyterOllama.base_url = '${OLLAMA_EXTERNAL_URL}'
-c.JupyterOllama.default_model = '${OLLAMA_DEFAULT_MODEL}'
+# 核心配置（自动拼接）
+c.JupyterAI.model_provider_id = "ollama"
+c.JupyterAI.model_id = OLLAMA_MODEL
+c.JupyterAI.chat_provider = f"ollama:{OLLAMA_MODEL}"
+c.JupyterAI.autocomplete_provider = f"ollama:{OLLAMA_MODEL}"
+
+# Ollama 连接地址
+c.JupyterOllama.base_url = OLLAMA_BASE_URL
+c.JupyterOllama.default_model = OLLAMA_MODEL
 
 c.LabApp.extensions_in_dev_mode = True
 EOF
