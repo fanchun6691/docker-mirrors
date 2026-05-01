@@ -102,6 +102,7 @@ pip install \
     langchain-openai>=0.2.0 \
     langchain-anthropic>=0.2.0 \
     langchain-google-genai>=2.0.0 \
+    langchain-ollama>=0.2.0 
 
 pip install --force-reinstall  google-ai-generativelanguage==0.7.0 
 # AI 模型工具
