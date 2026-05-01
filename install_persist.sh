@@ -305,14 +305,6 @@ source /opt/conda/etc/profile.d/conda.sh
 
 # 激活 AI 环境（用于 Python 包和扩展）
 conda activate ${CONDA_ENV_NAME}
-
-# 清理端口占用，避免端口冲突
-echo "🧹 清理残留进程和端口..."
-pkill -f "jupyter" 2>/dev/null || true
-lsof -ti :8881 | xargs kill -9 2>/dev/null || true
-lsof -ti :3001 | xargs kill -9 2>/dev/null || true
-sleep 2
-
 # 设置环境变量
 export JUPYTER_ENABLE_LAB=yes
 export OLLAMA_HOST=\${OLLAMA_HOST:-${OLLAMA_EXTERNAL_URL}}
