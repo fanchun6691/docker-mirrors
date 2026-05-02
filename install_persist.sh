@@ -195,7 +195,6 @@ echo "⚙️ 配置 JupyterLab..."
 CONFIG_DIR="/home/jovyan/.jupyter"
 mkdir -p ${CONFIG_DIR}
 
-# JupyterLab 配置
 cat > ${CONFIG_DIR}/jupyter_lab_config.py << 'EOF'
 import os
 from jupyter_server.services.contents.checkpoints import AsyncCheckpoints
@@ -230,19 +229,18 @@ c.ContentsManager.checkpoints_kwargs = {}
 c.JupyterOllama.base_url = OLLAMA_BASE_URL
 c.JupyterOllama.default_model = OLLAMA_MODEL
 
-# 启用 ACP 核心扩展（v3.0 必需）
+# 启用 ACP 核心扩展（v3.0 正确列表！）
 c.ServerApp.jpserver_extensions = {
-    "jupyter_ai": True,
-    "jupyter_ai_magics": True,
     "jupyter_ai_acp_client": True,
     "jupyter_ai_persona_manager": True,
     "jupyter_ai_router": True,
     "jupyterlab_chat": True
 }
 
-# 自动加载 %ai 魔法命令
-c.InteractiveShellApp.extensions = ["jupyter_ai_magics"]
-
+# 自动加载魔法命令（可选，添加后 %ai 自动可用）
+c.InteractiveShellApp.extensions = [
+    'jupyter_ai_magic_commands'
+]
 # 关闭开发模式
 c.LabApp.extensions_in_dev_mode = False
 EOF
