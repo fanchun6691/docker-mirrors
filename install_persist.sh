@@ -61,7 +61,7 @@ fi
 # 安装 Jupyter AI 扩展（必需）
 # Jupyter 核心包
 pip install \
-    'jupyter-ai[magics]==3.0.0' \
+    'jupyter-ai[all]==3.0.0' \
     ipykernel>=6.0.0 \
     ipywidgets>=8.0.0 
 
