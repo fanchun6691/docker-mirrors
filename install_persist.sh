@@ -197,20 +197,22 @@ mkdir -p ${CONFIG_DIR}
 
 cat > ${CONFIG_DIR}/jupyter_lab_config.py << 'EOF'
 import os
-from jupyter_server.services.contents.checkpoints import AsyncCheckpoints
+# 3.0 禁用检查点官方标准类
+from jupyter_server.services.contents.checkpoints import DisableCheckpoints
 
 # 环境变量
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://192.168.112.136:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_DEFAULT_MODEL", "qwen2.5-coder:7b-q4")
 
 # ==========================
-# 基础服务
+# 基础服务 适配 Jupyter Server 2.x
 # ==========================
 c.ServerApp.allow_root = True
 c.ServerApp.ip = '0.0.0.0'
 c.ServerApp.port = 8881
 c.ServerApp.open_browser = False
-c.ServerApp.token = ''
+# 废弃token配置迁移到 IdentityProvider
+c.IdentityProvider.token = ''
 c.ServerApp.password = ''
 c.ServerApp.allow_origin = '*'
 c.ServerApp.allow_remote_access = True
@@ -219,17 +221,22 @@ c.ServerApp.trust_xheaders = True
 c.ServerApp.disable_check_xsrf = True
 
 c.ContentsManager.allow_hidden = True
-c.ContentsManager.checkpoints_class = AsyncCheckpoints
-c.ContentsManager.checkpoints_kwargs = {}
 
 # ==========================
-# Jupyter AI 3.0 (纯 ACP)
+# 根治保存500、NotImplementedError（3.0 必配）
 # ==========================
-# Ollama 提供者配置
+c.ContentsManager.checkpoints_class = DisableCheckpoints
+c.FileContentsManager.checkpoints_class = DisableCheckpoints
+# 关闭YDoc自动保存，杜绝循环报错
+c.ServerDocsApp.auto_save_interval = 0
+
+# ==========================
+# Jupyter AI 3.0 纯ACP 最小合法扩展列表
+# 删掉 jupyter_ai、jupyter_ai_magics 等3.0不存在/废弃项
+# ==========================
 c.JupyterOllama.base_url = OLLAMA_BASE_URL
 c.JupyterOllama.default_model = OLLAMA_MODEL
 
-# 启用 ACP 核心扩展（v3.0 正确列表！）
 c.ServerApp.jpserver_extensions = {
     "jupyter_ai_acp_client": True,
     "jupyter_ai_persona_manager": True,
@@ -237,14 +244,14 @@ c.ServerApp.jpserver_extensions = {
     "jupyterlab_chat": True
 }
 
-# 自动加载魔法命令（可选，添加后 %ai 自动可用）
+# 3.0 正确魔法命令模块名
 c.InteractiveShellApp.extensions = [
     'jupyter_ai_magic_commands'
 ]
+
 # 关闭开发模式
 c.LabApp.extensions_in_dev_mode = False
 EOF
-
 
 # ============================================
 # IPython 启动脚本（持久化）
