@@ -45,20 +45,15 @@ echo "📚 安装 Python 包..."
 # ============================================
 # 安装 AI 专用包（不重复安装 JupyterLab）
 # ============================================
-echo "📚 安装 AI 专用包..."
-
-# 只在需要时安装 JupyterLab
-if [ "$INSTALL_JUPYTER" = true ]; then
-    echo "安装 JupyterLab..."
-    conda run -n ${CONDA_ENV_NAME} pip install jupyterlab>=4.0.0
-else
-    echo "⏭️ 跳过 JupyterLab 安装（使用 base 环境预装版本）"
-fi
 
 # 安装 Jupyter AI 扩展（必需）
 # Jupyter 核心包
 conda run -n ${CONDA_ENV_NAME}  pip install \
     'jupyter-ai[magics]==3.0.0' \
+    'jupyter-ai-acp==0.1.0' \
+    'jupyter-ai-persona-manager==0.1.0' \
+    'jupyter-ai-router==0.1.0' \
+    'jupyterlab-chat==0.6.0' \
     ipykernel>=6.0.0 \
     ipywidgets>=8.0.0 
 
@@ -145,7 +140,7 @@ conda run -n ${CONDA_ENV_NAME} pip install \
 # ============================================
 echo "🎯 注册 Jupyter Kernel..."
 
-python -m ipykernel install \
+conda run -n ${CONDA_ENV_NAME} python -m ipykernel install \
     --user \
     --name ${CONDA_ENV_NAME} \
     --display-name "Python 3.10 (AI)"
@@ -172,17 +167,7 @@ cat > ${KERNEL_DIR}/kernel.json << EOF
   "OLLAMA_HOST": "${OLLAMA_EXTERNAL_URL}",
   "OLLAMA_BASE_URL": "${OLLAMA_EXTERNAL_URL}",
   "OLLAMA_DEFAULT_MODEL": "${OLLAMA_DEFAULT_MODEL}",
-  "HF_ENDPOINT": "${HF_ENDPOINT:-https://hf-mirror.com}",
-  "OPENAI_API_KEY": "${OPENAI_API_KEY}",
-  "OPENAI_BASE_URL": "${OPENAI_BASE_URL:-https://api.openai.com/v1}",
-  "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}",
-  "GOOGLE_API_KEY": "${GOOGLE_API_KEY}",
-  "HUGGINGFACEHUB_API_TOKEN": "${HUGGINGFACEHUB_API_TOKEN}",
-  "COHERE_API_KEY": "${COHERE_API_KEY}",
-  "AI21_API_KEY": "${AI21_API_KEY}",
-  "AWS_ACCESS_KEY_ID": "${AWS_ACCESS_KEY_ID}",
-  "AWS_SECRET_ACCESS_KEY": "${AWS_SECRET_ACCESS_KEY}",
-  "AWS_DEFAULT_REGION": "${AWS_DEFAULT_REGION:-us-east-1}"
+  "HF_ENDPOINT": "${HF_ENDPOINT:-https://hf-mirror.com}"
  }
 }
 EOF
@@ -234,20 +219,17 @@ c.ServerDocsApp.auto_save_interval = 0
 # Jupyter AI 3.0 纯ACP 最小合法扩展列表
 # 删掉 jupyter_ai、jupyter_ai_magics 等3.0不存在/废弃项
 # ==========================
-c.JupyterOllama.base_url = OLLAMA_BASE_URL
-c.JupyterOllama.default_model = OLLAMA_MODEL
+# c.JupyterOllama.base_url = OLLAMA_BASE_URL
+# c.JupyterOllama.default_model = OLLAMA_MODEL
 
 c.ServerApp.jpserver_extensions = {
-    "jupyter_ai_acp_client": True,
-    "jupyter_ai_persona_manager": True,
-    "jupyter_ai_router": True,
     "jupyterlab_chat": True
 }
 
 # 3.0 正确魔法命令模块名
-c.InteractiveShellApp.extensions = [
-    'jupyter_ai_magic_commands'
-]
+#c.InteractiveShellApp.extensions = [
+#    'jupyter_ai_magic_commands'
+#]
 
 # 关闭开发模式
 c.LabApp.extensions_in_dev_mode = False
@@ -273,19 +255,8 @@ os.environ.setdefault('OLLAMA_BASE_URL', 'http://192.168.112.136:11434')
 os.environ.setdefault('OLLAMA_DEFAULT_MODEL', 'qwen2.5-coder:7b-q4')
 os.environ.setdefault('HF_ENDPOINT', 'https://hf-mirror.com')
 
-# 加载 Jupyter AI 魔法命令（v3.0 正确写法）
-try:
-    from IPython import get_ipython
-    ip = get_ipython()
-    if ip:
-        # v3.0 只需要加载 jupyter_ai_magic_commands
-        ip.run_line_magic('load_ext', 'jupyter_ai_magic_commands')
-        print("✅ Jupyter AI 魔法命令已加载")
-        print("🦙 Ollama 服务器: http://192.168.112.136:11434")
-        print("📦 默认模型: qwen2.5-coder:7b-q4")
-        print("📝 使用方法: %ai ollama/qwen2.5-coder:7b-q4 你的问题")
-except Exception as e:
-    print(f"⚠️ Jupyter AI 加载失败: {e}")
+print("✅ AI 环境已配置")
+print(f"🦙 Ollama: {os.environ['OLLAMA_HOST']}")
 EOF
 
 # ============================================
@@ -343,7 +314,6 @@ rm -rf /home/jovyan/.cache/pip
 rm -rf /home/jovyan/.cache/conda
 rm -rf /home/jovyan/.cache/huggingface
 rm -rf /home/jovyan/.cache/matplotlib
-rm -rf /home/jovyan/.ipython
 
 # 删除临时文件
 rm -rf /tmp/pip-*
@@ -464,34 +434,41 @@ cat > /home/jovyan/README_JUPYTER_AI.md << 'EOF'
 ---
 
 2. Jupyter AI 详细使用介绍
-2.1 什么是 Jupyter AI
-Jupyter AI 是 Jupyter 官方推出的 AI 辅助编程工具，集成了多种大语言模型，可以在 Notebook 中直接使用 AI 进行代码生成、解释、优化、调试等操作。
+# Jupyter AI v3.0 使用指南
 
-v3.0 新特性：
+## 欢迎使用 Jupyter AI v3.0！
 
-基于 ACP (Agent Client Protocol) 架构
+Jupyter AI v3.0 是一个全新的 AI 协作平台，核心是**多智能体协作**与**实时聊天**。它与 v2 的用法完全不同。
 
-支持 Persona（角色） 系统
+### 快速开始
 
-支持工具调用（AI 可执行代码、读写文件）
+1. **启动环境**：容器启动后，访问 `http://localhost:8881` 打开 JupyterLab。
+2. **打开聊天界面**：点击 JupyterLab **左侧边栏的 🤖 (Jupyter AI) 图标**。
+3. **选择AI角色**：在聊天界面中，你可以选择不同的 **AI 角色 (Personas)**，例如 “Jupyternaut”、“Assistant” 等。
+4. **开始对话**：在聊天输入框中直接向 AI 提问或发出指令。
 
-更快的启动速度
+### 核心新功能
 
+*   **协作聊天**：可以创建聊天室，同时与多个 AI 角色或**其他人类伙伴**协作。
+*   **安全护栏**：AI 在**执行代码、写入文件或运行终端命令前，必须请求你批准**。
+*   **强大的智能体**：界面中可直接使用 Claude, Copilot, Gemini 等前沿模型（需配置API密钥）。
+*   **共享上下文**：可以直接拖拽文件 (.ipynb, .py, .txt) 或单元格到聊天中作为上下文。
+
+### 配置外部 AI 服务 (如 OpenAI)
+
+Jupyter AI 会**自动读取**你设置在环境变量中的 API 密钥。你可以在启动容器时注入：
+
+```bash
+docker run -e OPENAI_API_KEY="sk-..." ...
 2.2 加载扩展
-在使用 Jupyter AI 之前，需要先加载魔法命令扩展：
-
-python
-# 加载魔法命令扩展（v3.0 正确写法）
-%load_ext jupyter_ai_magic_commands
-加载成功后，即可使用 %ai 和 %%ai 命令。
 
 2.3 基本使用语法
 python
 # 单行命令格式（注意使用 / 而不是 :）
-%ai ollama/qwen2.5-coder:7b-q4 你的问题
+%ai ollama:qwen2.5-coder:7b-q4 你的问题
 
 # 多行单元格格式
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 你的问题
 可以写多行
 参数说明：
@@ -505,28 +482,28 @@ qwen2.5-coder:7b-q4：模型名称
 2.4 代码生成
 python
 # 生成排序算法
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 用 Python 实现一个快速排序算法
 python
 # 生成类定义
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 实现一个 Python 类，表示银行账户，包含存款、取款、查询余额方法
 python
 # 生成函数
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 写一个函数，判断一个字符串是否是回文串
 python
 # 生成正则表达式
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 写一个正则表达式，匹配中国大陆的手机号码
 python
 # 生成SQL语句
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 写一个SQL查询，查询每个部门工资最高的员工
 2.5 代码解释
 python
 # 解释复杂代码
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 解释这段代码的作用：
 def quicksort(arr):
     if len(arr) <= 1:
@@ -538,11 +515,11 @@ def quicksort(arr):
     return quicksort(left) + middle + quicksort(right)
 python
 # 解释算法原理
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 解释动态规划的原理，并用斐波那契数列举例
 python
 # 解释报错信息
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 这个错误是什么意思？如何解决？
 Traceback (most recent call last):
   File "<stdin>", line 1, in <module>
@@ -550,7 +527,7 @@ KeyError: 'name'
 2.6 代码优化
 python
 # 性能优化
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 优化这段代码的性能：
 def find_duplicates(arr):
     result = []
@@ -561,7 +538,7 @@ def find_duplicates(arr):
     return result
 python
 # 代码重构
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 重构这段代码，使其更符合Python最佳实践：
 def calc(a,b,c):
     if c == 'add':
@@ -574,7 +551,7 @@ def calc(a,b,c):
         return a / b
 python
 # 简化逻辑
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 简化这段代码的逻辑：
 if x == True:
     return True
@@ -583,7 +560,7 @@ else:
 2.7 代码调试
 python
 # 查找bug
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 这段代码有什么bug？如何修复？
 def divide_list(lst, n):
     return [lst[i:i+n] for i in range(0, len(lst), n)]
@@ -591,7 +568,7 @@ def divide_list(lst, n):
 result = divide_list([1,2,3], 0)
 python
 # 边界条件检查
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 检查这段代码的边界条件处理：
 def binary_search(arr, target):
     left, right = 0, len(arr) - 1
@@ -606,14 +583,14 @@ def binary_search(arr, target):
     return -1
 python
 # 异常处理
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 为这段代码添加异常处理：
 def read_file(filename):
     with open(filename, 'r') as f:
         return f.read()
 2.8 单元测试生成
 python
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 为以下函数生成单元测试：
 def is_prime(n):
     if n < 2:
@@ -624,31 +601,31 @@ def is_prime(n):
     return True
 2.9 文档生成
 python
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 为以下函数生成 docstring：
 def calculate_interest(principal, rate, time):
     return principal * (1 + rate) ** time - principal
 2.10 代码转换
 python
 # Python转Java
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 将以下 Python 代码转换为 Java：
 def factorial(n):
     return 1 if n <= 1 else n * factorial(n-1)
 python
 # 列表推导转循环
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 将列表推导式转换为普通循环：
 squares = [x**2 for x in range(10) if x % 2 == 0]
 python
 # 使用lambda改写
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 用 lambda 表达式改写这段代码：
 def add(x, y):
     return x + y
 2.11 代码审查
 python
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 审查以下代码，指出潜在问题：
 def process_user_data(user_data):
     result = []
@@ -663,32 +640,32 @@ def process_user_data(user_data):
 2.12 学习辅助
 python
 # 解释概念
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 解释 Python 中的装饰器，给出3个实际应用场景
 python
 # 对比差异
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 对比列表和元组的区别，包括性能、使用场景、可变性
 python
 # 最佳实践
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 Python 中处理文件的最佳实践有哪些？
 python
 # 面试问题
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 出一道 Python 面试题，考察闭包的知识点，并给出答案
 2.13 格式化输出
 python
 # JSON格式输出
-%%ai ollama/qwen2.5-coder:7b-q4 --format json
+%%ai ollama:qwen2.5-coder:7b-q4 --format json
 列出5种常见的设计模式，包含名称和描述
 python
 # Markdown表格格式
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 用Markdown表格格式列出Python的常用数据结构及其时间复杂度
 python
 # 指定语言
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 用中文回答：什么是机器学习？
 2.14 使用变量
 python
@@ -701,25 +678,25 @@ def fibonacci(n):
 """
 
 # 在AI指令中使用变量
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 优化这段递归代码，避免重复计算：
 {code}
 2.15 多轮对话
 python
 # 第一轮：设定角色
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 你是一个Python专家，请用中文回答我的问题
 python
 # 第二轮：提问
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 什么是生成器？
 python
 # 第三轮：深入
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 生成器和列表推导式有什么区别？
 python
 # 第四轮：举例
-%%ai ollama/qwen2.5-coder:7b-q4
+%%ai ollama:qwen2.5-coder:7b-q4
 给我一个使用生成器读取大文件的例子
 2.16 查看可用模型
 python
@@ -729,8 +706,8 @@ python
 # 列出 ollama 的所有模型
 %ai list ollama
 python
-# 使用 kai 命令查看
-%kai list
+# 使用 ai 命令查看
+%ai list
 2.17 使用其他 AI 服务
 python
 # OpenAI
@@ -765,10 +742,7 @@ Jupyter AI 还提供了侧边栏聊天界面：
 
 AI 会在聊天界面中回复
 
-2.20 查看配置
-python
-# 查看当前 Ollama 配置
-%config JupyterOllama
+
 
 
 
@@ -1280,8 +1254,8 @@ python
 # ANTHROPIC_API_KEY=sk-ant-xxx
 
 # v3.0 会自动读取这些环境变量
-%ai openai/gpt-4o 你的问题
-%ai anthropic/claude-3-5-sonnet-20241022 你的问题
+%ai openai:gpt-4o 你的问题
+%ai anthropic:claude-3-5-sonnet-20241022 你的问题
 6. 高级用法
 传递变量给AI
 python

@@ -82,19 +82,7 @@ RUN apt-get update && \
         curl \
         wget \
         git \
-        build-essential \
         ca-certificates && \
-    # 关键：先卸载旧版 Node.js
-    apt-get remove -y nodejs npm libnode-dev || true && \
-    apt-get autoremove -y && \
-    # 安装 Node.js 20.x
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y nodejs && \
-    # ============================================
-    # 清理所有下载的临时文件
-    # ============================================
-    rm -f /tmp/nodesource_setup.sh && \
-    rm -f /etc/apt/sources.list.d/nodesource.list && \
     rm -rf /var/lib/apt/lists/* && \
     rm -rf /var/cache/apt/archives/*.deb && \
     apt-get clean
