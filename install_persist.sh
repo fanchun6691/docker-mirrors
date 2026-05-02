@@ -369,10 +369,10 @@ echo "✅ 清理完成"
 echo "✅ 验证安装..."
 
 echo "JupyterLab 版本:"
-conda run -n base jupyter-lab --version
+conda run -n ${CONDA_ENV_NAME}  jupyter-lab --version
 
 echo "已安装的 AI 包:"
-pip list | grep -E "jupyter-ai|langchain|torch|transformers"
+conda run -n ${CONDA_ENV_NAME} pip list | grep -E "jupyter-ai|langchain|torch|transformers"
 
 echo ""
 echo "=========================================="
@@ -385,37 +385,6 @@ echo "  - Ollama 服务器: ${OLLAMA_EXTERNAL_URL}"
 echo "  - 默认模型: ${OLLAMA_DEFAULT_MODEL}"
 echo "=========================================="
 
-# 测试 Ollama 连接
-echo "🔍 测试 Ollama 服务器连接..."
-if curl -s --max-time 5 ${OLLAMA_EXTERNAL_URL} > /dev/null 2>&1; then
-    echo "✅ Ollama 服务器连接成功 (${OLLAMA_EXTERNAL_URL})"
-    
-    # 检查模型是否可用
-    if curl -s --max-time 10 ${OLLAMA_EXTERNAL_URL}/api/tags 2>/dev/null | grep -q "${OLLAMA_DEFAULT_MODEL}"; then
-        echo "✅ 模型 ${OLLAMA_DEFAULT_MODEL} 已就绪"
-    else
-        echo "⚠️  模型 ${OLLAMA_DEFAULT_MODEL} 未找到"
-        echo "📋 可用模型列表:"
-        curl -s ${OLLAMA_EXTERNAL_URL}/api/tags 2>/dev/null | python3 -c "
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    models = [m['name'] for m in data.get('models', [])]
-    for m in models[:5]:
-        print(f'    - {m}')
-except:
-    pass
-" || echo "    无法获取模型列表"
-    fi
-else
-    echo "⚠️  无法连接到 Ollama 服务器 (${OLLAMA_EXTERNAL_URL})"
-    echo "   请检查:"
-    echo "   1. 服务器 192.168.112.136 是否在线"
-    echo "   2. 端口 11434 是否开放"
-    echo "   3. 网络连接是否正常"
-fi
-
-echo ""
 echo "🎯 JupyterLab 已配置完成，启动命令已准备就绪"
 
 # ============================================
