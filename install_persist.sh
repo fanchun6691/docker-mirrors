@@ -24,11 +24,9 @@ else
     conda create -n ${CONDA_ENV_NAME} python=${PYTHON_VERSION} -y
 fi
 
-# 激活环境
-conda activate ${CONDA_ENV_NAME}
 
 # 升级 pip
-pip install --upgrade pip setuptools wheel
+conda run -n ${CONDA_ENV_NAME}  pip install --upgrade pip Cython setuptools wheel
 
 # ============================================
 # 安装 Node.js 20（使用 conda，避免 apt 冲突）
@@ -37,7 +35,6 @@ echo "📦 安装 Node.js 20..."
 conda install -n ${CONDA_ENV_NAME} -c conda-forge nodejs=20 -y
 
 # 确保环境变量正确
-export PATH=/opt/conda/envs/${CONDA_ENV_NAME}/bin:$PATH
 node --version
 
 
@@ -53,33 +50,33 @@ echo "📚 安装 AI 专用包..."
 # 只在需要时安装 JupyterLab
 if [ "$INSTALL_JUPYTER" = true ]; then
     echo "安装 JupyterLab..."
-    pip install jupyterlab>=4.0.0
+    conda run -n ${CONDA_ENV_NAME} pip install jupyterlab>=4.0.0
 else
     echo "⏭️ 跳过 JupyterLab 安装（使用 base 环境预装版本）"
 fi
 
 # 安装 Jupyter AI 扩展（必需）
 # Jupyter 核心包
-pip install \
+conda run -n ${CONDA_ENV_NAME}  pip install \
     'jupyter-ai[magics]==3.0.0' \
     ipykernel>=6.0.0 \
     ipywidgets>=8.0.0 
 
 # 重建 JupyterLab 确保前端扩展生效
 echo " 重建 JupyterLab 扩展..."
-jupyter lab build --minimize=False
+conda run -n ${CONDA_ENV_NAME} jupyter lab build --minimize=False
 echo " Jupyter AI 核心包安装完成"
 # 验证扩展安装
 echo " 验证扩展列表:"
-jupyter labextension list
+conda run -n ${CONDA_ENV_NAME} jupyter labextension list
 echo " Jupyter AI 核心包安装完成"
 
 # 新增这一行，用 conda 安装 nb_conda_kernels
-pip install --force-reinstall setuptools==69.0.2
+conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall setuptools==69.0.2
 conda install -n ${CONDA_ENV_NAME} -c conda-forge nb_conda_kernels=2.3.1 -y
 
 # 数据科学基础库
-pip install \
+conda run -n ${CONDA_ENV_NAME} pip install \
     numpy>=1.24.0 \
     pandas>=2.0.0 \
     matplotlib>=3.7.0 \
@@ -89,12 +86,12 @@ pip install \
     xgboost>=2.0.0
 
 # 深度学习框架（CPU 版本，如需 GPU 可更换）
-pip install --force-reinstall protobuf==7.34.0
-pip install  torch>=2.0.0   torchvision>=0.15.0    tensorflow>=2.15.0
-pip install --force-reinstall protobuf==7.34.0
+conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall protobuf==7.34.0
+conda run -n ${CONDA_ENV_NAME} pip install  torch>=2.0.0   torchvision>=0.15.0    tensorflow>=2.15.0
+conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall protobuf==7.34.0
 # LangChain 生态系统
-pip install --force-reinstall  google-ai-generativelanguage==0.7.0 
-pip install \
+conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall  google-ai-generativelanguage==0.7.0 
+conda run -n ${CONDA_ENV_NAME} pip install \
     langchain>=0.3.0 \
     langchain-core>=0.3.0 \
     langchain-community>=0.3.0 \
@@ -103,9 +100,9 @@ pip install \
     langchain-google-genai>=2.0.0 \
     langchain-ollama>=0.2.0 
 
-pip install --force-reinstall  google-ai-generativelanguage==0.7.0 
+conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall  google-ai-generativelanguage==0.7.0 
 # AI 模型工具
-pip install \
+conda run -n ${CONDA_ENV_NAME} pip install \
     transformers>=4.30.0 \
     datasets>=2.14.0 \
     accelerate>=0.20.0 \
@@ -114,19 +111,19 @@ pip install \
     google-generativeai>=0.3.0
 
 # 可视化库
-pip install \
+conda run -n ${CONDA_ENV_NAME} pip install \
     plotly>=5.15.0 \
     bokeh>=3.2.0 \
     altair>=5.0.0
 
 # 向量数据库
-pip install \
+conda run -n ${CONDA_ENV_NAME} pip install \
     faiss-cpu>=1.7.0 \
     chromadb>=0.4.0 \
     pinecone-client>=2.2.0
 
 # 工具库
-pip install \
+conda run -n ${CONDA_ENV_NAME} pip install \
     requests>=2.31.0 \
     tqdm>=4.65.0 \
     python-dotenv>=1.0.0 \
@@ -138,7 +135,7 @@ pip install \
     openpyxl>=3.1.0
 
 # Jupyter 扩展
-pip install \
+conda run -n ${CONDA_ENV_NAME} pip install \
     jupyterlab-git>=0.45.0 \
     jupyterlab-lsp>=5.0.0
 
@@ -331,8 +328,8 @@ chmod +x /home/jovyan/start_jupyter_ai.sh
 echo "🧹 清理缓存和临时文件..."
 
 # pip 清理
-pip cache purge
-pip cache remove "*" 2>/dev/null || true
+conda run -n ${CONDA_ENV_NAME} pip cache purge
+conda run -n ${CONDA_ENV_NAME} pip cache remove "*" 2>/dev/null || true
 
 # conda 清理
 conda clean -afy
