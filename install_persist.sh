@@ -141,6 +141,35 @@ conda run -n ${CONDA_ENV_NAME} python -m ipykernel install \
     --name ${CONDA_ENV_NAME} \
     --display-name "Python 3.10 (AI)"
 
+# ============================================
+# 配置 LiteLLM 模型列表（使用环境变量）
+# ============================================
+echo "⚙️ 配置 LiteLLM 模型..."
+
+mkdir -p /home/jovyan/.litellm
+
+# 使用 cat 和变量替换（注意：不使用 'EOF' 引号，以便解析变量）
+cat > /home/jovyan/.litellm/config.yaml << EOF
+model_list:
+  - model_name: qwen2.5-coder:7b-q4
+    litellm_params:
+      model: ollama/qwen2.5-coder:7b-q4
+      api_base: ${OLLAMA_HOST:-http://192.168.112.136:11434}
+      temperature: ${OLLAMA_TEMPERATURE:-0.7}
+      max_tokens: ${MAX_TOKENS:-2048}
+  - model_name: deepseek-coder:6.7b
+    litellm_params:
+      model: ollama/deepseek-coder:6.7b
+      api_base: ${OLLAMA_HOST:-http://192.168.112.136:11434}
+      temperature: ${OLLAMA_TEMPERATURE:-0.7}
+      max_tokens: ${MAX_TOKENS:-2048}
+EOF
+
+echo "✅ LiteLLM 配置完成"
+echo "   API Base: ${OLLAMA_HOST}"
+echo "   Temperature: ${OLLAMA_TEMPERATURE:-0.7}"
+
+
 # 创建 kernel 配置（从环境变量读取）
 KERNEL_DIR="/home/jovyan/.local/share/jupyter/kernels/${CONDA_ENV_NAME}"
 mkdir -p ${KERNEL_DIR}
@@ -163,7 +192,9 @@ cat > ${KERNEL_DIR}/kernel.json << EOF
   "OLLAMA_HOST": "${OLLAMA_EXTERNAL_URL}",
   "OLLAMA_BASE_URL": "${OLLAMA_EXTERNAL_URL}",
   "OLLAMA_DEFAULT_MODEL": "${OLLAMA_DEFAULT_MODEL}",
-  "HF_ENDPOINT": "${HF_ENDPOINT:-https://hf-mirror.com}"
+  "HF_ENDPOINT": "${HF_ENDPOINT:-https://hf-mirror.com}",
+  "LITELLM_CONFIG_PATH": "/home/jovyan/.litellm/config.yaml",
+  "LITELLM_LOCAL_MODEL_COST_MAP": "True"
  }
 }
 EOF
@@ -250,7 +281,8 @@ echo "🚀 创建启动脚本..."
 
 cat > /home/jovyan/start_jupyter_ai.sh << 'EOF'
 #!/bin/bash
-
+export LITELLM_CONFIG_PATH=/home/jovyan/.litellm/config.yaml
+export LITELLM_LOCAL_MODEL_COST_MAP=True
 # 初始化 conda
 source /opt/conda/etc/profile.d/conda.sh
 
