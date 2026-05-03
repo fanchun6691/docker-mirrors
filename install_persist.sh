@@ -50,10 +50,6 @@ echo "📚 安装 Python 包..."
 # Jupyter 核心包
 conda run -n ${CONDA_ENV_NAME}  pip install \
     'jupyter-ai[magics]==3.0.0' \
-    'jupyter-ai-acp==0.1.0' \
-    'jupyter-ai-persona-manager==0.1.0' \
-    'jupyter-ai-router==0.1.0' \
-    'jupyterlab-chat==0.6.0' \
     ipykernel>=6.0.0 \
     ipywidgets>=8.0.0 
 
