@@ -178,9 +178,6 @@ mkdir -p ${CONFIG_DIR}
 
 cat > ${CONFIG_DIR}/jupyter_lab_config.py << 'EOF'
 import os
-# 3.0 禁用检查点官方标准类
-from jupyter_server.services.contents.checkpoints import DisableCheckpoints
-
 # 环境变量
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://192.168.112.136:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_DEFAULT_MODEL", "qwen2.5-coder:7b-q4")
