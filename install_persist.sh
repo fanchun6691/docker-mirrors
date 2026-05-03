@@ -134,10 +134,10 @@ conda run -n ${CONDA_ENV_NAME} pip install \
 # ============================================
 echo "⚙️ 配置 LiteLLM 模型..."
 
-mkdir -p /home/jovyan/.litellm
+mkdir -p /home/jovyan/.jupyter/litellm
 
 # 使用 cat 和变量替换（注意：不使用 'EOF' 引号，以便解析变量）
-cat > /home/jovyan/.litellm/config.yaml << EOF
+cat > /home/jovyan/.jupyter/litellm/config.yaml << EOF
 model_list:
   - model_name: qwen2.5-coder:7b-q4
     litellm_params:
@@ -188,7 +188,7 @@ cat > ${KERNEL_DIR}/kernel.json << EOF
   "OLLAMA_TEMPERATURE": "${OLLAMA_TEMPERATURE:-0.7}",
   "MAX_TOKENS": "${MAX_TOKENS:-2048}",
   "HF_ENDPOINT": "${HF_ENDPOINT:-https://hf-mirror.com}",
-  "LITELLM_CONFIG_PATH": "/home/jovyan/.litellm/config.yaml",
+  "LITELLM_CONFIG_PATH": "/home/jovyan/.jupyter/litellm/config.yaml",
   "LITELLM_LOCAL_MODEL_COST_MAP": "True"
 }
 }
@@ -244,7 +244,7 @@ echo "🚀 创建启动脚本..."
 cat > /home/jovyan/start_jupyter_ai.sh << 'EOF'
 #!/bin/bash
 # 设置 LiteLLM 配置（必须在 conda activate 之前）
-export LITELLM_CONFIG_PATH=/home/jovyan/.litellm/config.yaml
+export LITELLM_CONFIG_PATH=/home/jovyan/.jupyter/litellm/config.yaml
 export LITELLM_LOCAL_MODEL_COST_MAP=True
 
 # 初始化 conda
