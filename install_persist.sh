@@ -130,17 +130,6 @@ conda run -n ${CONDA_ENV_NAME} pip install \
     jupyterlab-git>=0.45.0 \
     jupyterlab-lsp>=5.0.0
 
-
-# ============================================
-# 注册 Jupyter Kernel
-# ============================================
-echo "🎯 注册 Jupyter Kernel..."
-
-conda run -n ${CONDA_ENV_NAME} python -m ipykernel install \
-    --user \
-    --name ${CONDA_ENV_NAME} \
-    --display-name "Python 3.10 (AI)"
-
 # ============================================
 # 配置 LiteLLM 模型列表（使用环境变量）
 # ============================================
@@ -169,6 +158,11 @@ echo "✅ LiteLLM 配置完成"
 echo "   API Base: ${OLLAMA_HOST}"
 echo "   Temperature: ${OLLAMA_TEMPERATURE:-0.7}"
 
+rm -rf /home/jovyan/.ipython/profile_default/startup/00-jupyter-ai-setup.py
+# ============================================
+# 安装 nb_conda_kernels（让 Jupyter 识别 conda 环境）
+# ============================================
+conda install -n ${CONDA_ENV_NAME} -c conda-forge nb_conda_kernels=2.3.1 -y
 
 # 创建 kernel 配置（从环境变量读取）
 KERNEL_DIR="/home/jovyan/.local/share/jupyter/kernels/${CONDA_ENV_NAME}"
@@ -188,14 +182,16 @@ cat > ${KERNEL_DIR}/kernel.json << EOF
  "metadata": {
   "debugger": true
  },
- "env": {
+"env": {
   "OLLAMA_HOST": "${OLLAMA_EXTERNAL_URL}",
   "OLLAMA_BASE_URL": "${OLLAMA_EXTERNAL_URL}",
   "OLLAMA_DEFAULT_MODEL": "${OLLAMA_DEFAULT_MODEL}",
+  "OLLAMA_TEMPERATURE": "${OLLAMA_TEMPERATURE:-0.7}",
+  "MAX_TOKENS": "${MAX_TOKENS:-2048}",
   "HF_ENDPOINT": "${HF_ENDPOINT:-https://hf-mirror.com}",
   "LITELLM_CONFIG_PATH": "/home/jovyan/.litellm/config.yaml",
   "LITELLM_LOCAL_MODEL_COST_MAP": "True"
- }
+}
 }
 EOF
 
@@ -207,14 +203,14 @@ echo "⚙️ 配置 JupyterLab..."
 CONFIG_DIR="/home/jovyan/.jupyter"
 mkdir -p ${CONFIG_DIR}
 
-cat > ${CONFIG_DIR}/jupyter_lab_config.py << 'EOF'
+cat > ${CONFIG_DIR}/jupyter_lab_config.py << EOF
 import os
 # 环境变量
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://192.168.112.136:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_DEFAULT_MODEL", "qwen2.5-coder:7b-q4")
 
 # ==========================
-# 基础服务 适配 Jupyter Server 2.x
+# 基础服务 适配 Jupyter Server 
 # ==========================
 c.ServerApp.allow_root = True
 c.ServerApp.ip = '0.0.0.0'
@@ -231,47 +227,14 @@ c.ServerApp.disable_check_xsrf = True
 
 c.ContentsManager.allow_hidden = True
 
-# Jupyter AI 3.0 纯ACP 最小合法扩展列表
-# 删掉 jupyter_ai、jupyter_ai_magics 等3.0不存在/废弃项
-# ==========================
-# c.JupyterOllama.base_url = OLLAMA_BASE_URL
-# c.JupyterOllama.default_model = OLLAMA_MODEL
-
 c.ServerApp.jpserver_extensions = {
     "jupyterlab_chat": True
 }
-
-# 3.0 正确魔法命令模块名
-#c.InteractiveShellApp.extensions = [
-#    'jupyter_ai_magic_commands'
-#]
-
-# 关闭开发模式
+# 自动加载魔法命令，这里是正确的 v3 写法
+c.InteractiveShellApp.extensions = [
+    'jupyter_ai_magic_commands'  # 注意，这里用的是这个名字
+]
 c.LabApp.extensions_in_dev_mode = False
-EOF
-
-# ============================================
-# IPython 启动脚本（持久化）
-# ============================================
-echo "📝 配置 IPython 启动脚本..."
-
-IPYTHON_DIR="/home/jovyan/.ipython/profile_default/startup"
-mkdir -p ${IPYTHON_DIR}
-
-cat > ${IPYTHON_DIR}/00-jupyter-ai-setup.py << 'EOF'
-# -*- coding: utf-8 -*-
-"""Jupyter AI 自动配置脚本（持久化）"""
-
-import os
-
-# 设置环境变量
-os.environ.setdefault('OLLAMA_HOST', 'http://192.168.112.136:11434')
-os.environ.setdefault('OLLAMA_BASE_URL', 'http://192.168.112.136:11434')
-os.environ.setdefault('OLLAMA_DEFAULT_MODEL', 'qwen2.5-coder:7b-q4')
-os.environ.setdefault('HF_ENDPOINT', 'https://hf-mirror.com')
-
-print("✅ AI 环境已配置")
-print(f"🦙 Ollama: {os.environ['OLLAMA_HOST']}")
 EOF
 
 # ============================================
@@ -281,8 +244,10 @@ echo "🚀 创建启动脚本..."
 
 cat > /home/jovyan/start_jupyter_ai.sh << 'EOF'
 #!/bin/bash
+# 设置 LiteLLM 配置（必须在 conda activate 之前）
 export LITELLM_CONFIG_PATH=/home/jovyan/.litellm/config.yaml
 export LITELLM_LOCAL_MODEL_COST_MAP=True
+
 # 初始化 conda
 source /opt/conda/etc/profile.d/conda.sh
 
