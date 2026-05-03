@@ -341,24 +341,38 @@ echo "=========================================="
 echo "🎯 JupyterLab 已配置完成，启动命令已准备就绪"
 
 # ============================================
-# 创建 .env 配置文件（可被 volume 覆盖）
+# 创建 .env 配置文件（Jupyter AI v3.0 自动读取）
 # ============================================
-cat > /home/jovyan/.env.default << 'EOF'
-# Jupyter-AI 默认环境变量
-# 注意：此文件中的 ${变量} 会在 Jupyter kernel 启动时由 shell 解析
+cat > /home/jovyan/work/.env << 'EOF'
+# ============================================
+# Jupyter AI v3.0 LiteLLM 核心配置
+# ============================================
+LITELLM_CONFIG_PATH=/home/jovyan/.jupyter/litellm/config.yaml
+LITELLM_LOCAL_MODEL_COST_MAP=True
 
-OLLAMA_HOST=${OLLAMA_HOST:-http://192.168.112.136:11434}
-OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://192.168.112.136:11434}
-OLLAMA_DEFAULT_MODEL=${OLLAMA_DEFAULT_MODEL:-qwen2.5-coder:7b-q4}
-HF_ENDPOINT=${HF_ENDPOINT:-https://hf-mirror.com}
-JUPYTER_PORT=8881
+# ============================================
+# Ollama 配置
+# ============================================
+OLLAMA_HOST=http://192.168.112.136:11434
+OLLAMA_BASE_URL=http://192.168.112.136:11434
+OLLAMA_DEFAULT_MODEL=qwen2.5-coder:7b-q4
 
+# ============================================
 # 模型参数（可选）
+# ============================================
 OLLAMA_TEMPERATURE=0.7
 OLLAMA_TOP_P=0.9
 OLLAMA_REPEAT_PENALTY=1.1
+MAX_TOKENS=2048
 
+# ============================================
+# Hugging Face 镜像
+# ============================================
+HF_ENDPOINT=https://hf-mirror.com
+
+# ============================================
 # 外部 API Keys（可选，运行时注入）
+# ============================================
 OPENAI_API_KEY=${OPENAI_API_KEY:-}
 ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
 GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
@@ -369,6 +383,8 @@ AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
 AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
 AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
 EOF
+
+echo "✅ .env 配置文件已创建在 /home/jovyan/work/.env"
 
 # ============================================
 # 创建使用说明文档
