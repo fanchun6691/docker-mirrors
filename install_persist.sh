@@ -64,7 +64,6 @@ echo " Jupyter AI 核心包安装完成"
 
 # 新增这一行，用 conda 安装 nb_conda_kernels
 conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall setuptools==69.0.2
-conda install -n ${CONDA_ENV_NAME} -c conda-forge nb_conda_kernels=2.3.1 -y
 
 # 数据科学基础库
 conda run -n ${CONDA_ENV_NAME} pip install \
