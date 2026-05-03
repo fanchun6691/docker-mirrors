@@ -203,15 +203,6 @@ c.ServerApp.disable_check_xsrf = True
 
 c.ContentsManager.allow_hidden = True
 
-# ==========================
-# 根治保存500、NotImplementedError（3.0 必配）
-# ==========================
-c.ContentsManager.checkpoints_class = DisableCheckpoints
-c.FileContentsManager.checkpoints_class = DisableCheckpoints
-# 关闭YDoc自动保存，杜绝循环报错
-c.ServerDocsApp.auto_save_interval = 0
-
-# ==========================
 # Jupyter AI 3.0 纯ACP 最小合法扩展列表
 # 删掉 jupyter_ai、jupyter_ai_magics 等3.0不存在/废弃项
 # ==========================
