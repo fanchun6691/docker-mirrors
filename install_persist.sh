@@ -237,6 +237,52 @@ c.LabApp.extensions_in_dev_mode = False
 EOF
 
 # ============================================
+# 创建 .env 到【不会被覆盖】的目录
+# ============================================
+cat > /home/jovyan/.env.final << 'EOF'
+# ============================================
+# Jupyter AI v3.0 LiteLLM 核心配置
+# ============================================
+LITELLM_CONFIG_PATH=/home/jovyan/.jupyter/litellm/config.yaml
+LITELLM_LOCAL_MODEL_COST_MAP=True
+
+# ============================================
+# Ollama 配置
+# ============================================
+OLLAMA_HOST=http://192.168.112.136:11434
+OLLAMA_BASE_URL=http://192.168.112.136:11434
+OLLAMA_DEFAULT_MODEL=qwen2.5-coder:7b-q4
+
+# ============================================
+# 模型参数（可选）
+# ============================================
+OLLAMA_TEMPERATURE=0.7
+OLLAMA_TOP_P=0.9
+OLLAMA_REPEAT_PENALTY=1.1
+MAX_TOKENS=2048
+
+# ============================================
+# Hugging Face 镜像
+# ============================================
+HF_ENDPOINT=https://hf-mirror.com
+
+# ============================================
+# 外部 API Keys（可选，运行时注入）
+# ============================================
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+GOOGLE_API_KEY=
+HUGGINGFACEHUB_API_TOKEN=
+COHERE_API_KEY=
+AI21_API_KEY=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=us-east-1
+EOF
+
+echo "✅ .env 已创建在 /home/jovyan/.env.final（安全区）"
+
+# ============================================
 # 创建启动脚本
 # ============================================
 echo "🚀 创建启动脚本..."
@@ -341,51 +387,6 @@ echo "=========================================="
 
 echo "🎯 JupyterLab 已配置完成，启动命令已准备就绪"
 
-# ============================================
-# 创建 .env 到【不会被覆盖】的目录
-# ============================================
-cat > /home/jovyan/.env.final << 'EOF'
-# ============================================
-# Jupyter AI v3.0 LiteLLM 核心配置
-# ============================================
-LITELLM_CONFIG_PATH=/home/jovyan/.jupyter/litellm/config.yaml
-LITELLM_LOCAL_MODEL_COST_MAP=True
-
-# ============================================
-# Ollama 配置
-# ============================================
-OLLAMA_HOST=http://192.168.112.136:11434
-OLLAMA_BASE_URL=http://192.168.112.136:11434
-OLLAMA_DEFAULT_MODEL=qwen2.5-coder:7b-q4
-
-# ============================================
-# 模型参数（可选）
-# ============================================
-OLLAMA_TEMPERATURE=0.7
-OLLAMA_TOP_P=0.9
-OLLAMA_REPEAT_PENALTY=1.1
-MAX_TOKENS=2048
-
-# ============================================
-# Hugging Face 镜像
-# ============================================
-HF_ENDPOINT=https://hf-mirror.com
-
-# ============================================
-# 外部 API Keys（可选，运行时注入）
-# ============================================
-OPENAI_API_KEY=
-ANTHROPIC_API_KEY=
-GOOGLE_API_KEY=
-HUGGINGFACEHUB_API_TOKEN=
-COHERE_API_KEY=
-AI21_API_KEY=
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_DEFAULT_REGION=us-east-1
-EOF
-
-echo "✅ .env 已创建在 /home/jovyan/.env.final（安全区）"
 
 # ============================================
 # 创建使用说明文档
