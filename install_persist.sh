@@ -272,7 +272,8 @@ echo "Ollama 服务器: ${OLLAMA_HOST}"
 echo "默认模型: ${OLLAMA_DEFAULT_MODEL}"
 echo "=========================================="
 echo "=========启动 jupyter lab========="
-
+# 启动时自动把 .env 复制到 work 目录（解决 VOLUME 覆盖问题）
+cp -f /home/jovyan/.env.final /home/jovyan/work/.env
 exec jupyter lab --config=/home/jovyan/.jupyter/jupyter_lab_config.py
 EOF
 
@@ -341,9 +342,9 @@ echo "=========================================="
 echo "🎯 JupyterLab 已配置完成，启动命令已准备就绪"
 
 # ============================================
-# 创建 .env 配置文件（Jupyter AI v3.0 自动读取）
+# 创建 .env 到【不会被覆盖】的目录
 # ============================================
-cat > /home/jovyan/work/.env << 'EOF'
+cat > /home/jovyan/.env.final << 'EOF'
 # ============================================
 # Jupyter AI v3.0 LiteLLM 核心配置
 # ============================================
@@ -373,18 +374,18 @@ HF_ENDPOINT=https://hf-mirror.com
 # ============================================
 # 外部 API Keys（可选，运行时注入）
 # ============================================
-OPENAI_API_KEY=${OPENAI_API_KEY:-}
-ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
-HUGGINGFACEHUB_API_TOKEN=${HUGGINGFACEHUB_API_TOKEN:-}
-COHERE_API_KEY=${COHERE_API_KEY:-}
-AI21_API_KEY=${AI21_API_KEY:-}
-AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
-AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
-AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+OPENAI_API_KEY=
+ANTHROPIC_API_KEY=
+GOOGLE_API_KEY=
+HUGGINGFACEHUB_API_TOKEN=
+COHERE_API_KEY=
+AI21_API_KEY=
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=us-east-1
 EOF
 
-echo "✅ .env 配置文件已创建在 /home/jovyan/work/.env"
+echo "✅ .env 已创建在 /home/jovyan/.env.final（安全区）"
 
 # ============================================
 # 创建使用说明文档
