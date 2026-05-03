@@ -252,7 +252,8 @@ source /opt/conda/etc/profile.d/conda.sh
 
 # 激活 AI 环境
 conda activate ai_env
-
+export LITELLM_CONFIG_PATH=/home/jovyan/.jupyter/litellm/config.yaml
+export LITELLM_LOCAL_MODEL_COST_MAP=True
 # 设置环境变量
 export JUPYTER_ENABLE_LAB=yes
 export OLLAMA_HOST=${OLLAMA_HOST:-http://192.168.112.136:11434}
