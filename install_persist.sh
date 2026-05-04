@@ -116,12 +116,6 @@ conda run -n ${CONDA_ENV_NAME} pip install \
 echo "  安装 Keras 3.6.0..."
 conda run -n ${CONDA_ENV_NAME} pip install keras==3.6.0
 
-# JAX 0.4.35（Google的深度学习框架）
-echo "  安装 JAX 0.4.35..."
-conda run -n ${CONDA_ENV_NAME} pip install \
-    jax \
-    jaxlib \
-    --index-url https://storage.googleapis.com/jax-releases/jax_cpu_releases.html
 
 # ONNX 支持
 echo "  安装 ONNX 生态..."
