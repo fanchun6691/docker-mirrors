@@ -39,17 +39,27 @@ node --version
 
 
 # ============================================
-# 安装 Python 包（持久化在镜像中）
+# 1. 先安装 JupyterLab 4.x 核心
 # ============================================
-echo "📚 安装 Python 包..."
+echo "📦 安装 JupyterLab 4.x..."
+
+conda run -n ${CONDA_ENV_NAME} pip install \
+    jupyterlab>=4.0.0 \
+    jupyter_server>=2.0.0 \
+    notebook>=7.0.0
+
 # ============================================
-# 安装 AI 专用包（不重复安装 JupyterLab）
+# 2. 验证 JupyterLab 版本
 # ============================================
+JLAB_VERSION=$(conda run -n ${CONDA_ENV_NAME} jupyter lab --version)
+echo "✅ JupyterLab 版本: ${JLAB_VERSION}"
 
 # 安装 Jupyter AI 扩展（必需）
 # Jupyter 核心包
 conda run -n ${CONDA_ENV_NAME}  pip install \
-    'jupyter-ai[magics]==3.0.0' \
+    jupyter_ai \
+    jupyter_ai_magics \
+    jupyter_ai_litellm \
     ipykernel>=6.0.0 \
     ipywidgets>=8.0.0 
 
