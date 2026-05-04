@@ -66,8 +66,8 @@ echo "🦜 安装 LangChain 生态..."
 conda run -n ${CONDA_ENV_NAME} pip install \
     langchain==1.0.8 \
     langchain-core==1.0.7 \
-    langchain-community==0.4.1 \
-    langchain-openai==1.0.3 \
+    langchain-community==0.3.13 \
+    langchain-openai==0.0.11 \
     langchain-anthropic==1.0.0 \
     langchain-google-genai==2.1.0 \
     langchain-ollama==0.3.0 \
