@@ -46,18 +46,20 @@ ENV PATH=/opt/conda/bin:$PATH
 # 初始化 conda
 RUN conda init bash
 
-# ============================================
-# 切换到 jovyan 用户（避免权限问题）
-# ============================================
-USER jovyan
-WORKDIR /home/jovyan
-
+# 切换到 root 用户进行文件操作
+USER root
 # ============================================
 # 复制安装脚本文件
 # ============================================
 COPY install_persist.sh /home/jovyan/install_persist.sh
-RUN chmod +x /home/jovyan/install_persist.sh
+RUN chown jovyan:users /home/jovyan/install_persist.sh && \
+         chmod +x /home/jovyan/install_persist.sh
 
+# ============================================
+# 切换到 jovyan 用户
+# ============================================
+USER jovyan
+WORKDIR /home/jovyan
 # ============================================
 # 执行安装脚本
 # ============================================
