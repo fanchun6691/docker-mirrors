@@ -60,12 +60,20 @@ conda run -n ${CONDA_ENV_NAME} pip install \
 
 # ============================================
 # 4. 安装 Ollama 集成（v3需要通过 langchain-ollama）
+#  LangChain 生态系统（最新版本）
 # ============================================
-echo "📦 安装 Ollama 集成..."
+echo "🦜 安装 LangChain 生态..."
 conda run -n ${CONDA_ENV_NAME} pip install \
-    langchain-ollama>=0.2.0 \
-    langchain>=0.3.0 \
-    langchain-core>=0.3.0
+    langchain==1.0.8 \
+    langchain-core==1.0.7 \
+    langchain-community==0.4.1 \
+    langchain-openai==1.0.3 \
+    langchain-anthropic==1.0.0 \
+    langchain-google-genai==2.1.0 \
+    langchain-ollama==0.3.0 \
+    langchain-text-splitters==1.0.0 \
+    langchain-experimental==0.4.0 \
+    langchain-ollama==0.3.0 
 
 # ============================================
 # 5. 重建 JupyterLab 确保前端扩展生效
@@ -126,20 +134,7 @@ conda run -n ${CONDA_ENV_NAME} pip install \
 # 恢复 protobuf 版本（确保兼容性）
 conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall protobuf==3.20.3
 
-# ============================================
-# 8. LangChain 生态系统（最新版本）
-# ============================================
-echo "🦜 安装 LangChain 生态..."
-conda run -n ${CONDA_ENV_NAME} pip install \
-    langchain==0.3.13 \
-    langchain-core==0.3.29 \
-    langchain-community==0.3.13 \
-    langchain-openai==0.2.14 \
-    langchain-anthropic==1.4.0 \
-    langchain-google-genai==2.0.8 \
-    langchain-ollama==0.2.2 \
-    langchain-text-splitters==0.3.4 \
-    langchain-experimental==0.3.4
+
 
 # ============================================
 # 9. AI 模型工具（最新版本）
