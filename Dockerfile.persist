@@ -1,104 +1,105 @@
-# Dockerfile.persist
-FROM jupyter/scipy-notebook:python-3.10
+# ============================================
+# Jupyter AI v3.0 完整环境 Dockerfile
+# ============================================
+# 基于官方 Jupyter 镜像
+FROM jupyter/base-notebook:latest
 
-# 设置环境变量
-# ============================================
-# Ollama 配置（本地/内网部署）
-# ============================================
-ENV JUPYTER_ENABLE_LAB=yes \
-    CONDA_ENV_NAME=ai_env \
-    OLLAMA_HOST=http://192.168.112.136:11434 \
-    OLLAMA_BASE_URL=http://192.168.112.136:11434 \
-    OLLAMA_DEFAULT_MODEL=qwen2.5-coder:7b-q4 \
-    HF_ENDPOINT=https://hf-mirror.com \
-    LITELLM_CONFIG_PATH=/home/jovyan/.jupyter/litellm/config.yaml \
-    LITELLM_LOCAL_MODEL_COST_MAP=True
+# 设置维护者信息
+LABEL maintainer="Jupyter AI Team"
+LABEL description="Jupyter AI v3.0 with PyTorch, TensorFlow, LangChain, and Ollama support"
 
-# ============================================
-# OpenAI 配置（可选）
-# ============================================
-ENV OPENAI_API_KEY="" \
-    OPENAI_BASE_URL="https://api.openai.com/v1" \
-    OPENAI_ORG_ID=""
+# 设置环境变量（构建时）
+ENV CONDA_ENV_NAME=ai_env
+ENV PYTHON_VERSION=3.11
+ENV JUPYTER_ENABLE_LAB=yes
+ENV OLLAMA_HOST=http://192.168.112.136:11434
+ENV OLLAMA_BASE_URL=http://192.168.112.136:11434
+ENV OLLAMA_DEFAULT_MODEL=qwen2.5-coder:7b-q4
+ENV OLLAMA_TEMPERATURE=0.7
+ENV MAX_TOKENS=2048
+ENV HF_ENDPOINT=https://hf-mirror.com
 
-# ============================================
-# Anthropic Claude 配置（可选）
-# ============================================
-ENV ANTHROPIC_API_KEY=""
-
-# ============================================
-# Google Gemini 配置（可选）
-# ============================================
-ENV GOOGLE_API_KEY=""
-
-# ============================================
-# Hugging Face 配置（可选）
-# ============================================
-ENV HUGGINGFACEHUB_API_TOKEN="" \
-    HF_HOME="/home/jovyan/.cache/huggingface"
-
-# ============================================
-# Cohere 配置（可选）
-# ============================================
-ENV COHERE_API_KEY=""
-
-# ============================================
-# AI21 Labs 配置（可选）
-# ============================================
-ENV AI21_API_KEY=""
-
-# ============================================
-# AWS Bedrock / SageMaker 配置（可选）
-# ============================================
-ENV AWS_ACCESS_KEY_ID="" \
-    AWS_SECRET_ACCESS_KEY="" \
-    AWS_DEFAULT_REGION="us-east-1"
-
-# ============================================
-# Azure OpenAI 配置（可选）
-# ============================================
-ENV AZURE_OPENAI_API_KEY="" \
-    AZURE_OPENAI_ENDPOINT="" \
-    AZURE_OPENAI_DEPLOYMENT_NAME=""
-
-# ============================================
-# 本地部署的 OpenAI 兼容服务（LM Studio / LocalAI / vLLM）
-# ============================================
-ENV LOCAL_OPENAI_API_KEY="sk-no-key-required" \
-    LOCAL_OPENAI_BASE_URL="http://localhost:1234/v1"
-
-# ============================================
-# 模型参数默认值（可选）
-# ============================================
-ENV OLLAMA_TEMPERATURE="0.7" \
-    OLLAMA_TOP_P="0.9" \
-    OLLAMA_REPEAT_PENALTY="1.1" \
-    MAX_TOKENS="2048"
-
-# 切换到 root 用户安装系统依赖
+# 切换到 root 用户进行系统级安装
 USER root
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        vim \
-        curl \
-        wget \
-        git \
-        ca-certificates && \
-    rm -rf /var/lib/apt/lists/* && \
-    rm -rf /var/cache/apt/archives/*.deb && \
-    apt-get clean
+# ============================================
+# 系统依赖安装
+# ============================================
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    git \
+    vim \
+    nano \
+    htop \
+    wget \
+    ca-certificates \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# 切换回 jovyan 用户进行 conda 环境配置
+# ============================================
+# 配置 Conda 环境
+# ============================================
+# 确保 conda 可用
+ENV PATH=/opt/conda/bin:$PATH
+
+# 初始化 conda
+RUN conda init bash
+
+# ============================================
+# 切换到 jovyan 用户（避免权限问题）
+# ============================================
 USER jovyan
 WORKDIR /home/jovyan
 
-# 复制安装脚本
-COPY install_persist.sh /tmp/install_persist.sh
-RUN bash /tmp/install_persist.sh 
+# ============================================
+# 复制安装脚本文件
+# ============================================
+COPY install_persist.sh /home/jovyan/install_persist.sh
+RUN chmod +x /home/jovyan/install_persist.sh
 
+# ============================================
+# 执行安装脚本
+# ============================================
+RUN /home/jovyan/install_persist.sh
+
+# ============================================
+# 复制启动脚本和配置文件
+# ============================================
+COPY --chown=jovyan:users start_jupyter_ai.sh /home/jovyan/start_jupyter_ai.sh
+COPY --chown=jovyan:users .env.final /home/jovyan/.env.final
+COPY --chown=jovyan:users JUPYTER_AI_V3_COMPLETE_GUIDE.md /home/jovyan/JUPYTER_AI_V3_COMPLETE_GUIDE.md
+COPY --chown=jovyan:users QUICK_REFERENCE.md /home/jovyan/QUICK_REFERENCE.md
+
+RUN chmod +x /home/jovyan/start_jupyter_ai.sh
+
+# ============================================
+# 创建必要的目录结构
+# ============================================
+RUN mkdir -p /home/jovyan/work \
+    /home/jovyan/notebooks \
+    /home/jovyan/.jupyter \
+    /home/jovyan/.ipython/profile_default/startup \
+    /home/jovyan/.local/share/jupyter/kernels
+
+# ============================================
+# 设置工作目录
+# ============================================
+WORKDIR /home/jovyan/work
+
+# ============================================
 # 暴露端口
+# ============================================
 EXPOSE 8881
+EXPOSE 3001
 
-# 启动命令
-CMD ["bash", "/home/jovyan/start_jupyter_ai.sh"]
+# ============================================
+# 健康检查
+# ============================================
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8881/api || exit 1
+
+# ============================================
+# 设置入口点和默认命令
+# ============================================
+ENTRYPOINT ["/bin/bash", "/home/jovyan/start_jupyter_ai.sh"]

@@ -4,12 +4,12 @@
 set -e
 
 echo "=========================================="
-echo "🔧 持久化安装 Jupyter-AI 环境"
+echo "🔧 持久化安装 Jupyter-AI v3.0 环境"
 echo "=========================================="
 
 # 配置变量（从环境变量读取，与 Dockerfile 保持一致）
 CONDA_ENV_NAME="ai_env"
-PYTHON_VERSION="3.10"
+PYTHON_VERSION="3.11"  # v3推荐使用3.11
 OLLAMA_EXTERNAL_URL="${OLLAMA_HOST:-http://192.168.112.136:11434}"
 OLLAMA_DEFAULT_MODEL="${OLLAMA_DEFAULT_MODEL:-qwen2.5-coder:7b-q4}"
 
@@ -24,29 +24,23 @@ else
     conda create -n ${CONDA_ENV_NAME} python=${PYTHON_VERSION} -y
 fi
 
-
 # 升级 pip
-conda run -n ${CONDA_ENV_NAME}  pip install --upgrade pip Cython setuptools wheel
+conda run -n ${CONDA_ENV_NAME} pip install --upgrade pip setuptools wheel
 
 # ============================================
-# 安装 Node.js 20（使用 conda，避免 apt 冲突）
+# 安装 Node.js 20（v3需要，用于前端构建）
 # ============================================
 echo "📦 安装 Node.js 20..."
 conda install -n ${CONDA_ENV_NAME} -c conda-forge nodejs=20 -y
-
-# 确保环境变量正确
 node --version
 
-
 # ============================================
-# 1. 先安装 JupyterLab 4.x 核心
+# 1. 先安装 JupyterLab 4.x 核心（v3强制要求）
 # ============================================
 echo "📦 安装 JupyterLab 4.x..."
-
 conda run -n ${CONDA_ENV_NAME} pip install \
-    jupyterlab>=4.0.0 \
-    jupyter_server>=2.0.0 \
-    notebook>=7.0.0
+    "jupyterlab>=4.0.0,<5.0.0" \
+    "jupyter_server>=2.0.0"
 
 # ============================================
 # 2. 验证 JupyterLab 版本
@@ -54,28 +48,39 @@ conda run -n ${CONDA_ENV_NAME} pip install \
 JLAB_VERSION=$(conda run -n ${CONDA_ENV_NAME} jupyter lab --version)
 echo "✅ JupyterLab 版本: ${JLAB_VERSION}"
 
-# 安装 Jupyter AI 扩展（必需）
-# Jupyter 核心包
-conda run -n ${CONDA_ENV_NAME}  pip install \
-    jupyter_ai \
-    jupyter_ai_magics \
-    jupyter_ai_litellm \
+# ============================================
+# 3. 安装 Jupyter AI v3.0 核心包
+# ============================================
+echo "📦 安装 Jupyter AI v3.0..."
+conda run -n ${CONDA_ENV_NAME} pip install \
+    "jupyter-ai>=3.0.0" \
+    "jupyter-ai-magic-commands" \
     ipykernel>=6.0.0 \
-    ipywidgets>=8.0.0 
+    ipywidgets>=8.0.0
 
-# 重建 JupyterLab 确保前端扩展生效
-echo " 重建 JupyterLab 扩展..."
+# ============================================
+# 4. 安装 Ollama 集成（v3需要通过 langchain-ollama）
+# ============================================
+echo "📦 安装 Ollama 集成..."
+conda run -n ${CONDA_ENV_NAME} pip install \
+    langchain-ollama>=0.2.0 \
+    langchain>=0.3.0 \
+    langchain-core>=0.3.0
+
+# ============================================
+# 5. 重建 JupyterLab 确保前端扩展生效
+# ============================================
+echo "🔨 重建 JupyterLab 扩展..."
 conda run -n ${CONDA_ENV_NAME} jupyter lab build --minimize=False
-echo " Jupyter AI 核心包安装完成"
+
 # 验证扩展安装
-echo " 验证扩展列表:"
+echo "📋 验证扩展列表:"
 conda run -n ${CONDA_ENV_NAME} jupyter labextension list
-echo " Jupyter AI 核心包安装完成"
 
-# 新增这一行，用 conda 安装 nb_conda_kernels
-conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall setuptools==69.0.2
-
-# 数据科学基础库
+# ============================================
+# 6. 数据科学基础库
+# ============================================
+echo "📚 安装数据科学基础库..."
 conda run -n ${CONDA_ENV_NAME} pip install \
     numpy>=1.24.0 \
     pandas>=2.0.0 \
@@ -85,67 +90,146 @@ conda run -n ${CONDA_ENV_NAME} pip install \
     scipy>=1.10.0 \
     xgboost>=2.0.0
 
-# 深度学习框架（CPU 版本，如需 GPU 可更换）
-conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall protobuf==7.34.0
-conda run -n ${CONDA_ENV_NAME} pip install  torch>=2.0.0   torchvision>=0.15.0    tensorflow>=2.15.0
-conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall protobuf==7.34.0
-# LangChain 生态系统
-conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall  google-ai-generativelanguage==0.7.0 
-conda run -n ${CONDA_ENV_NAME} pip install \
-    langchain>=0.3.0 \
-    langchain-core>=0.3.0 \
-    langchain-community>=0.3.0 \
-    langchain-openai>=0.2.0 \
-    langchain-anthropic>=0.2.0 \
-    langchain-google-genai>=2.0.0 \
-    langchain-ollama>=0.2.0 
+# ============================================
+# 7. 深度学习框架（最新版本）
+# ============================================
+echo "🔥 安装深度学习框架..."
 
-conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall  google-ai-generativelanguage==0.7.0 
-# AI 模型工具
-conda run -n ${CONDA_ENV_NAME} pip install \
-    transformers>=4.30.0 \
-    datasets>=2.14.0 \
-    accelerate>=0.20.0 \
-    openai>=1.0.0 \
-    anthropic>=0.3.0 \
-    google-generativeai>=0.3.0
+# 修复 protobuf 版本兼容性
+conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall protobuf==3.20.3
 
-# 可视化库
+# PyTorch 2.5.1（最新稳定版）
+echo "  安装 PyTorch 2.5.1..."
 conda run -n ${CONDA_ENV_NAME} pip install \
-    plotly>=5.15.0 \
-    bokeh>=3.2.0 \
-    altair>=5.0.0
+    torch==2.5.1 \
+    torchvision==0.20.1 \
+    torchaudio==2.5.1 \
+    --index-url https://download.pytorch.org/whl/cpu
 
-# 向量数据库
+# TensorFlow 2.18.0（最新稳定版）
+echo "  安装 TensorFlow 2.18.0..."
 conda run -n ${CONDA_ENV_NAME} pip install \
-    faiss-cpu>=1.7.0 \
-    chromadb>=0.4.0 \
-    pinecone-client>=2.2.0
+    tensorflow==2.18.0 \
+    tensorflow-cpu==2.18.0
 
-# 工具库
+# Keras 3.6.0（最新版）
+echo "  安装 Keras 3.6.0..."
+conda run -n ${CONDA_ENV_NAME} pip install keras==3.6.0
+
+# JAX 0.4.35（Google的深度学习框架）
+echo "  安装 JAX 0.4.35..."
+conda run -n ${CONDA_ENV_NAME} pip install \
+    jax==0.4.35 \
+    jaxlib==0.4.35 \
+    --index-url https://storage.googleapis.com/jax-releases/jax_cpu_releases.html
+
+# ONNX 支持
+echo "  安装 ONNX 生态..."
+conda run -n ${CONDA_ENV_NAME} pip install \
+    onnx==1.16.0 \
+    onnxruntime==1.19.2 \
+    onnx2torch==0.3.0
+
+# 恢复 protobuf 版本（确保兼容性）
+conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall protobuf==3.20.3
+
+# ============================================
+# 8. LangChain 生态系统（最新版本）
+# ============================================
+echo "🦜 安装 LangChain 生态..."
+conda run -n ${CONDA_ENV_NAME} pip install \
+    langchain==0.3.13 \
+    langchain-core==0.3.29 \
+    langchain-community==0.3.13 \
+    langchain-openai==0.2.14 \
+    langchain-anthropic==0.2.8 \
+    langchain-google-genai==2.0.8 \
+    langchain-ollama==0.2.2 \
+    langchain-text-splitters==0.3.4 \
+    langchain-experimental==0.3.4
+
+# ============================================
+# 9. AI 模型工具（最新版本）
+# ============================================
+echo "🤗 安装 AI 模型工具..."
+conda run -n ${CONDA_ENV_NAME} pip install \
+    transformers==4.46.3 \
+    datasets==3.1.0 \
+    accelerate==1.1.1 \
+    peft==0.13.2 \
+    bitsandbytes==0.44.1 \
+    sentencepiece==0.2.0 \
+    tokenizers==0.20.3 \
+    huggingface-hub==0.26.2
+
+# API 客户端
+conda run -n ${CONDA_ENV_NAME} pip install \
+    openai==1.55.3 \
+    anthropic==0.40.0 \
+    google-generativeai==0.8.3 \
+    mistralai==1.1.0 \
+    groq==0.12.0 \
+    cohere==5.10.0
+
+# ============================================
+# 10. 向量数据库
+# ============================================
+echo "🗄️ 安装向量数据库..."
+conda run -n ${CONDA_ENV_NAME} pip install \
+    chromadb==0.5.20 \
+    faiss-cpu==1.9.0 \
+    pinecone-client==5.0.1 \
+    qdrant-client==1.12.1 \
+    weaviate-client==4.9.4 \
+    pgvector==0.3.4
+
+# ============================================
+# 11. 可视化库
+# ============================================
+echo "📊 安装可视化库..."
+conda run -n ${CONDA_ENV_NAME} pip install \
+    plotly==5.24.1 \
+    bokeh==3.6.0 \
+    altair==5.4.1 \
+    dash==2.18.1 \
+    streamlit==1.38.0 \
+    gradio==5.7.1
+
+# ============================================
+# 12. 工具库
+# ============================================
+echo "🔧 安装工具库..."
 conda run -n ${CONDA_ENV_NAME} pip install \
     requests>=2.31.0 \
-    tqdm>=4.65.0 \
+    tqdm>=4.66.0 \
     python-dotenv>=1.0.0 \
     pyyaml>=6.0 \
-    httpx>=0.25.0 \
-    aiohttp>=3.8.0 \
-    pypdf>=3.0.0 \
-    python-docx>=0.8.11 \
-    openpyxl>=3.1.0
-
-# Jupyter 扩展
-conda run -n ${CONDA_ENV_NAME} pip install \
-    jupyterlab-git>=0.45.0 \
-    jupyterlab-lsp>=5.0.0
+    httpx>=0.27.0 \
+    aiohttp>=3.10.0 \
+    pypdf>=5.0.0 \
+    python-docx>=1.1.0 \
+    openpyxl>=3.1.0 \
+    pillow>=10.0.0 \
+    click>=8.1.0 \
+    rich>=13.7.0 \
+    loguru>=0.7.2
 
 # ============================================
-# 配置 LiteLLM 模型列表（使用环境变量）
+# 13. Jupyter 扩展
+# ============================================
+echo "🧩 安装 Jupyter 扩展..."
+conda run -n ${CONDA_ENV_NAME} pip install \
+    jupyterlab-git>=0.50.0 \
+    jupyterlab-lsp>=5.1.0 \
+    jupyterlab-code-formatter>=3.0.0 \
+    jupyterlab-execute-time>=3.0.0
+
+# ============================================
+# 14. 配置 LiteLLM 模型列表
 # ============================================
 echo "⚙️ 配置 LiteLLM 模型..."
-
-# 3. 创建正确的配置文件
 mkdir -p /home/jovyan/.jupyter/litellm
+
 cat > /home/jovyan/.jupyter/litellm/config.yaml << 'EOF'
 model_list:
   - model_name: qwen2.5-coder:7b-q4
@@ -166,24 +250,16 @@ model_list:
 litellm_settings:
   drop_params: True
   set_verbose: False
-  callbacks: []
 
 general_settings:
   master_key: sk-1234
-  database_url: sqlite:////home/jovyan/.jupyter/litellm/litellm.db
 EOF
 
 echo "✅ LiteLLM 配置完成"
-echo "   API Base: ${OLLAMA_HOST}"
-echo "   Temperature: ${OLLAMA_TEMPERATURE:-0.7}"
 
-rm -rf /home/jovyan/.ipython/profile_default/startup/00-jupyter-ai-setup.py
 # ============================================
-# 安装 nb_conda_kernels（让 Jupyter 识别 conda 环境）
+# 15. 创建 kernel 配置（v3使用Python 3.11）
 # ============================================
-conda install -n ${CONDA_ENV_NAME} -c conda-forge nb_conda_kernels=2.3.1 -y
-
-# 创建 kernel 配置（从环境变量读取）
 KERNEL_DIR="/home/jovyan/.local/share/jupyter/kernels/${CONDA_ENV_NAME}"
 mkdir -p ${KERNEL_DIR}
 
@@ -196,12 +272,12 @@ cat > ${KERNEL_DIR}/kernel.json << EOF
   "-f",
   "{connection_file}"
  ],
- "display_name": "Python 3.10 (AI)",
+ "display_name": "Python 3.11 (AI v3)",
  "language": "python",
  "metadata": {
   "debugger": true
  },
-"env": {
+ "env": {
   "OLLAMA_HOST": "${OLLAMA_EXTERNAL_URL}",
   "OLLAMA_BASE_URL": "${OLLAMA_EXTERNAL_URL}",
   "OLLAMA_DEFAULT_MODEL": "${OLLAMA_DEFAULT_MODEL}",
@@ -210,32 +286,34 @@ cat > ${KERNEL_DIR}/kernel.json << EOF
   "HF_ENDPOINT": "${HF_ENDPOINT:-https://hf-mirror.com}",
   "LITELLM_CONFIG_PATH": "/home/jovyan/.jupyter/litellm/config.yaml",
   "LITELLM_LOCAL_MODEL_COST_MAP": "True"
-}
+ }
 }
 EOF
 
 # ============================================
-# 配置 JupyterLab（持久化配置）
+# 16. 配置 JupyterLab（v3专用配置）
 # ============================================
-echo "⚙️ 配置 JupyterLab..."
+echo "⚙️ 配置 JupyterLab v3..."
 
 CONFIG_DIR="/home/jovyan/.jupyter"
 mkdir -p ${CONFIG_DIR}
 
-cat > ${CONFIG_DIR}/jupyter_lab_config.py << EOF
+# 统一的 jupyter_server_config.py（v3精简版）
+cat > ${CONFIG_DIR}/jupyter_server_config.py << 'EOF'
 import os
-# 环境变量
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://192.168.112.136:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_DEFAULT_MODEL", "qwen2.5-coder:7b-q4")
 
-# ==========================
-# 基础服务 适配 Jupyter Server 
-# ==========================
+# 设置环境变量
+os.environ.setdefault('LITELLM_CONFIG_PATH', '/home/jovyan/.jupyter/litellm/config.yaml')
+os.environ.setdefault('LITELLM_LOCAL_MODEL_COST_MAP', 'True')
+os.environ.setdefault('OLLAMA_HOST', 'http://192.168.112.136:11434')
+os.environ.setdefault('OLLAMA_BASE_URL', 'http://192.168.112.136:11434')
+
+# Server 配置
+c = get_config()
 c.ServerApp.allow_root = True
 c.ServerApp.ip = '0.0.0.0'
 c.ServerApp.port = 8881
 c.ServerApp.open_browser = False
-# 废弃token配置迁移到 IdentityProvider
 c.IdentityProvider.token = ''
 c.ServerApp.password = ''
 c.ServerApp.allow_origin = '*'
@@ -245,370 +323,299 @@ c.ServerApp.trust_xheaders = True
 c.ServerApp.disable_check_xsrf = True
 
 c.ContentsManager.allow_hidden = True
-
-c.ServerApp.jpserver_extensions = {
-    "jupyterlab_chat": True
-}
-# 自动加载魔法命令，这里是正确的 v3 写法
-c.InteractiveShellApp.extensions = [
-    'jupyter_ai_magic_commands'  # 注意，这里用的是这个名字
-]
 c.LabApp.extensions_in_dev_mode = False
+
+# 启用 Jupyter AI 扩展
+c.ServerApp.jpserver_extensions = {
+    "jupyter_ai": True
+}
+
+print(f"✅ Jupyter AI v3 配置加载完成")
+print(f"   LiteLLM config: {os.environ.get('LITELLM_CONFIG_PATH')}")
 EOF
 
-# 4. 创建更完善的 jupyter_server_config.py
-cat > /home/jovyan/.jupyter/jupyter_server_config.py << 'EOF'
-# ==========================================
-# Jupyter Server 配置 - 强制加载 LiteLLM
-# ==========================================
-
-import os
-import sys
-
-# 强制设置环境变量（确保内核和服务端都能看到）
-os.environ['LITELLM_CONFIG_PATH'] = '/home/jovyan/.jupyter/litellm/config.yaml'
-os.environ['LITELLM_LOCAL_MODEL_COST_MAP'] = 'True'
-os.environ['OLLAMA_HOST'] = os.environ.get('OLLAMA_HOST', 'http://192.168.112.136:11434')
-os.environ['OLLAMA_BASE_URL'] = os.environ.get('OLLAMA_BASE_URL', 'http://192.168.112.136:11434')
-
-# 验证配置文件存在
-config_path = os.environ['LITELLM_CONFIG_PATH']
-if os.path.exists(config_path):
-    print(f"✅ LiteLLM config loaded: {config_path}")
-else:
-    print(f"⚠️  Warning: LiteLLM config not found at {config_path}")
-
-# 可选：预加载 LiteLLM 模块
-try:
-    from jupyter_ai_litellm import __version__
-    print(f"✅ jupyter_ai_litellm version: {__version__}")
-except ImportError as e:
-    print(f"⚠️  jupyter_ai_litellm import error: {e}")
-
-# 关闭 token 自动保存（避免权限问题）
-c = get_config()  # noqa
-c.ServerApp.token = ''
-c.ServerApp.password = ''
-c.ServerApp.open_browser = False
-c.ServerApp.allow_origin = '*'
-c.ServerApp.disable_check_xsrf = True
-EOF
-
-# 5. 创建内核启动脚本（确保内核继承环境变量）
+# ============================================
+# 17. 创建内核启动脚本（v3专用）
+# ============================================
 mkdir -p /home/jovyan/.ipython/profile_default/startup/
-cat > /home/jovyan/.ipython/profile_default/startup/00_ai_env.py << 'EOF'
-"""自动加载 AI 环境变量到 IPython 内核"""
-import os
 
-# 设置 LiteLLM 配置
+cat > /home/jovyan/.ipython/profile_default/startup/00_ai_env.py << 'EOF'
+"""Jupyter AI v3 内核环境初始化"""
+import os
+from pathlib import Path
+
+print("🤖 Jupyter AI v3 环境初始化...")
+
+# 设置环境变量
 os.environ.setdefault('LITELLM_CONFIG_PATH', '/home/jovyan/.jupyter/litellm/config.yaml')
 os.environ.setdefault('LITELLM_LOCAL_MODEL_COST_MAP', 'True')
 os.environ.setdefault('OLLAMA_HOST', 'http://192.168.112.136:11434')
 os.environ.setdefault('OLLAMA_BASE_URL', 'http://192.168.112.136:11434')
 
-# 打印确认信息
-print("🤖 AI Environment initialized")
-print(f"   LITELLM_CONFIG_PATH: {os.environ.get('LITELLM_CONFIG_PATH')}")
-print(f"   OLLAMA_HOST: {os.environ.get('OLLAMA_HOST')}")
+# 设置深度学习框架环境变量
+os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '2')  # 减少TensorFlow日志
+os.environ.setdefault('PYTORCH_CUDA_ALLOC_CONF', 'max_split_size_mb:512')
 
-# 验证配置文件
 config_path = os.environ.get('LITELLM_CONFIG_PATH', '')
-if config_path and os.path.exists(config_path):
-    print(f"   ✅ Config file exists")
+if Path(config_path).exists():
+    print(f"   ✅ LiteLLM 配置: {config_path}")
 else:
-    print(f"   ⚠️  Config file not found: {config_path}")
+    print(f"   ⚠️  LiteLLM 配置不存在: {config_path}")
+
+print(f"   ✅ Ollama: {os.environ.get('OLLAMA_HOST')}")
+print(f"   ✅ PyTorch 和 TensorFlow 已配置")
+print("🎉 Jupyter AI v3 就绪！")
+
+# 导入常用库以加速首次使用
+try:
+    import numpy as np
+    import pandas as pd
+    print("   ✅ NumPy, Pandas 已预加载")
+except:
+    pass
 EOF
 
-
 # ============================================
-# 创建 .env 到【不会被覆盖】的目录
+# 18. 创建 .env 文件
 # ============================================
-cat > /home/jovyan/.env.final << 'EOF'
-# ============================================
-# Jupyter AI v3.0 LiteLLM 核心配置
-# ============================================
+cat > /home/jovyan/.env.final << EOF
+# Jupyter AI v3.0 配置
 LITELLM_CONFIG_PATH=/home/jovyan/.jupyter/litellm/config.yaml
 LITELLM_LOCAL_MODEL_COST_MAP=True
 
-# ============================================
 # Ollama 配置
-# ============================================
-OLLAMA_HOST=http://192.168.112.136:11434
-OLLAMA_BASE_URL=http://192.168.112.136:11434
-OLLAMA_DEFAULT_MODEL=qwen2.5-coder:7b-q4
-
-# ============================================
-# 模型参数（可选）
-# ============================================
+OLLAMA_HOST=${OLLAMA_EXTERNAL_URL}
+OLLAMA_BASE_URL=${OLLAMA_EXTERNAL_URL}
+OLLAMA_DEFAULT_MODEL=${OLLAMA_DEFAULT_MODEL}
 OLLAMA_TEMPERATURE=0.7
 OLLAMA_TOP_P=0.9
-OLLAMA_REPEAT_PENALTY=1.1
 MAX_TOKENS=2048
 
-# ============================================
 # Hugging Face 镜像
-# ============================================
 HF_ENDPOINT=https://hf-mirror.com
 
-# ============================================
-# 外部 API Keys（可选，运行时注入）
-# ============================================
-OPENAI_API_KEY=
-ANTHROPIC_API_KEY=
-GOOGLE_API_KEY=
-HUGGINGFACEHUB_API_TOKEN=
-COHERE_API_KEY=
-AI21_API_KEY=
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_DEFAULT_REGION=us-east-1
+# 深度学习框架配置
+TF_CPP_MIN_LOG_LEVEL=2
+PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 EOF
 
-echo "✅ .env 已创建在 /home/jovyan/.env.final（安全区）"
-
 # ============================================
-# 创建启动脚本
+# 19. 创建启动脚本
 # ============================================
-echo "🚀 创建启动脚本..."
-
-# 6. 更新启动脚本
 cat > /home/jovyan/start_jupyter_ai.sh << 'EOF'
 #!/bin/bash
 
-# 设置 LiteLLM 配置路径
-export LITELLM_CONFIG_PATH=/home/jovyan/.jupyter/litellm/config.yaml
-export LITELLM_LOCAL_MODEL_COST_MAP=True
-
-# 初始化 conda
 source /opt/conda/etc/profile.d/conda.sh
-
-# 激活环境
 conda activate ai_env
 
-# 重新导出环境变量
 export LITELLM_CONFIG_PATH=/home/jovyan/.jupyter/litellm/config.yaml
 export LITELLM_LOCAL_MODEL_COST_MAP=True
 export JUPYTER_ENABLE_LAB=yes
 export OLLAMA_HOST=${OLLAMA_HOST:-http://192.168.112.136:11434}
 export OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://192.168.112.136:11434}
 export OLLAMA_DEFAULT_MODEL=${OLLAMA_DEFAULT_MODEL:-qwen2.5-coder:7b-q4}
-export HF_ENDPOINT=${HF_ENDPOINT:-https://hf-mirror.com}
+
+# 深度学习框架环境变量
+export TF_CPP_MIN_LOG_LEVEL=2
+export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 
 echo "=========================================="
-echo "🚀 启动 Jupyter-AI 服务"
+echo "🚀 启动 Jupyter AI v3.0 服务"
 echo "=========================================="
 echo "JupyterLab: http://localhost:8881"
-echo "Ollama 服务器: ${OLLAMA_HOST}"
+echo "Ollama: ${OLLAMA_HOST}"
 echo "默认模型: ${OLLAMA_DEFAULT_MODEL}"
-echo "LiteLLM 配置: ${LITELLM_CONFIG_PATH}"
+echo "PyTorch: $(python -c 'import torch; print(torch.__version__)' 2>/dev/null || echo '未安装')"
+echo "TensorFlow: $(python -c 'import tensorflow as tf; print(tf.__version__)' 2>/dev/null || echo '未安装')"
 echo "=========================================="
 
-# 验证配置
-if [ ! -f "${LITELLM_CONFIG_PATH}" ]; then
-    echo "❌ 错误: 配置文件不存在"
-    exit 1
-fi
-
-echo "✅ 配置文件验证通过"
-echo "=========启动 jupyter lab========="
-cp -f /home/jovyan/.env.final /home/jovyan/work/.env
-# 启动 Jupyter Lab
+cp -f /home/jovyan/.env.final /home/jovyan/work/.env 2>/dev/null || true
 exec jupyter lab --config=/home/jovyan/.jupyter/jupyter_server_config.py
 EOF
 
 chmod +x /home/jovyan/start_jupyter_ai.sh
 
-# 7. 修复权限
+# ============================================
+# 20. 修复权限
+# ============================================
 chown -R jovyan:users /home/jovyan/.jupyter
 chown -R jovyan:users /home/jovyan/.ipython
+chown -R jovyan:users /home/jovyan/.local/share/jupyter/kernels
+chown -R jovyan:users /home/jovyan/.cache
 
-echo "=========================================="
-echo "✅ 修复完成！"
-echo "=========================================="
-echo "请执行以下步骤："
-echo "1. 停止当前 Jupyter 服务 (Ctrl+C)"
-echo "2. 运行: ./start_jupyter_ai.sh"
-echo "3. 在 notebook 中测试:%ai list"
-echo "=========================================="
-
-echo "🧹 清理缓存和临时文件..."
-
-# pip 清理
-conda run -n ${CONDA_ENV_NAME} pip cache purge
-conda run -n ${CONDA_ENV_NAME} pip cache remove "*" 2>/dev/null || true
-
-# conda 清理
-conda clean -afy
-conda clean -t -y
-conda clean -p -y
-
-# 删除缓存目录
+# ============================================
+# 21. 清理缓存
+# ============================================
+echo "🧹 清理缓存..."
+conda clean -afy 2>/dev/null || true
+pip cache purge 2>/dev/null || true
 rm -rf /home/jovyan/.cache/pip
 rm -rf /home/jovyan/.cache/conda
 rm -rf /home/jovyan/.cache/huggingface
-rm -rf /home/jovyan/.cache/matplotlib
-
-# 删除临时文件
 rm -rf /tmp/pip-*
 rm -rf /tmp/tmp*
-rm -rf /tmp/*.log
-rm -rf /var/tmp/*
-
-# 删除 Python 字节码文件
-find /opt/conda/envs/${CONDA_ENV_NAME} -name "*.pyc" -delete 2>/dev/null || true
-find /opt/conda/envs/${CONDA_ENV_NAME} -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
-
-# 删除 npm 缓存（如果有）
-npm cache clean --force 2>/dev/null || true
-
-# 删除误写入工作目录的垃圾文件
-echo "🧹 清理垃圾文件..."
-rm -f /home/jovyan/=* 2>/dev/null
-rm -f /home/jovyan/work/=* 2>/dev/null
-
-echo "✅ 清理完成"
 
 # ============================================
-# 验证
+# 22. 验证安装
 # ============================================
 echo "✅ 验证安装..."
 
 echo "JupyterLab 版本:"
-conda run -n ${CONDA_ENV_NAME}  jupyter-lab --version
+conda run -n ${CONDA_ENV_NAME} jupyter-lab --version
 
+echo ""
 echo "已安装的 AI 包:"
-conda run -n ${CONDA_ENV_NAME} pip list | grep -E "jupyter-ai|langchain|torch|transformers"
+conda run -n ${CONDA_ENV_NAME} pip list | grep -E "jupyter-ai|langchain|torch|tensorflow|transformers"
+
+echo ""
+echo "PyTorch 版本:"
+conda run -n ${CONDA_ENV_NAME} python -c "import torch; print(f'  PyTorch: {torch.__version__}')" 2>/dev/null || echo "  PyTorch: 未安装"
+
+echo "TensorFlow 版本:"
+conda run -n ${CONDA_ENV_NAME} python -c "import tensorflow as tf; print(f'  TensorFlow: {tf.__version__}')" 2>/dev/null || echo "  TensorFlow: 未安装"
 
 echo ""
 echo "=========================================="
-echo "✅ 安装完成！"
+echo "✅ Jupyter AI v3.0 安装完成！"
 echo "=========================================="
-echo "环境架构:"
-echo "  - Jupyter AI 版本: 3.0.0"
-echo "  - Ollama 支持: 内置（无需额外安装）"
-echo "  - Ollama 服务器: ${OLLAMA_EXTERNAL_URL}"
-echo "  - 默认模型: ${OLLAMA_DEFAULT_MODEL}"
+echo "📦 已安装的深度学习框架:"
+echo "  - PyTorch 2.5.1"
+echo "  - TensorFlow 2.18.0"
+echo "  - Keras 3.6.0"
+echo "  - JAX 0.4.35"
+echo "  - ONNX 1.16.0"
+echo ""
+echo "启动服务: ./start_jupyter_ai.sh"
+echo ""
+echo "=========================================="
+echo "📖 在 Notebook 中测试:"
+echo "=========================================="
+echo ""
+echo "  # 1. 加载 v3 魔法命令"
+echo "  %load_ext jupyter_ai_magic_commands"
+echo ""
+echo "  # 2. 查看可用模型"
+echo "  %ai list"
+echo ""
+echo "  # 3. 使用 Ollama 模型"
+echo "  %%ai ollama/qwen2.5-coder:7b-q4"
+echo "  你好，请介绍一下自己"
+echo ""
+echo "  # 4. 测试深度学习框架"
+echo "  import torch"
+echo "  import tensorflow as tf"
+echo "  print(f'PyTorch: {torch.__version__}')"
+echo "  print(f'TensorFlow: {tf.__version__}')"
+echo ""
 echo "=========================================="
 
-echo "🎯 JupyterLab 已配置完成，启动命令已准备就绪"
+
+
+
+
+
 
 
 # ============================================
-# 创建使用说明文档
+# 23. 创建完整使用手册
 # ============================================
-cat > /home/jovyan/README_JUPYTER_AI.md << 'EOF'
-# Jupyter-AI 使用指南
+cat > /home/jovyan/JUPYTER_AI_V3_COMPLETE_GUIDE.md << 'EOF'
+# Jupyter AI v3.0 完整使用手册
 
-## 目录
+## 📋 目录
 
-1. [环境配置](#1-环境配置)
-2. [Jupyter AI 详细使用介绍](#2-jupyter-ai-详细使用介绍)
-3. [已安装工具及使用方法](#3-已安装工具及使用方法)
-4. [快速开始](#4-快速开始)
-5. [使用外部AI服务](#5-使用外部ai服务)
-6. [高级用法](#6-高级用法)
-7. [常见问题排查](#7-常见问题排查)
-8. [性能优化建议](#8-性能优化建议)
-9. [注意事项](#9-注意事项)
-10. [相关资源](#10-相关资源)
-
----
-
-## 1. 环境配置
-
-### 默认配置
-
-| 配置项 | 值 |
-|--------|-----|
-| Ollama服务器 | http://192.168.112.136:11434 |
-| 默认模型 | qwen2.5-coder:7b-q4 |
-| Conda环境 | ai_env |
-| Python版本 | 3.10 |
-
-### 支持的AI服务
-
-| 服务 | Provider ID | 环境变量 | 调用示例 |
-|------|-------------|----------|----------|
-| Ollama | ollama | OLLAMA_HOST | `%%ai ollama:qwen2.5-coder:7b-q4` |
-| OpenAI | openai-chat | OPENAI_API_KEY | `%%ai openai-chat:gpt-4` |
-| Claude | anthropic-chat | ANTHROPIC_API_KEY | `%%ai anthropic-chat:claude-3-5-sonnet-20241022` |
-| Gemini | gemini | GOOGLE_API_KEY | `%%ai gemini:gemini-1.5-pro` |
-| HuggingFace | huggingface_hub | HUGGINGFACEHUB_API_TOKEN | `%%ai huggingface_hub:model-name` |
+1. [环境概述](#1-环境概述)
+2. [快速开始](#2-快速开始)
+3. [Jupyter AI v3 核心功能](#3-jupyter-ai-v3-核心功能)
+4. [深度学习框架使用指南](#4-深度学习框架使用指南)
+5. [LangChain 应用开发](#5-langchain-应用开发)
+6. [向量数据库与RAG](#6-向量数据库与rag)
+7. [API 集成](#7-api-集成)
+8. [高级技巧](#8-高级技巧)
+9. [性能优化](#9-性能优化)
+10. [常见问题排查](#10-常见问题排查)
+11. [最佳实践](#11-最佳实践)
 
 ---
 
-2. Jupyter AI 详细使用介绍
-# Jupyter AI v3.0 使用指南
+## 1. 环境概述
 
-## 欢迎使用 Jupyter AI v3.0！
+### 1.1 版本信息
 
-Jupyter AI v3.0 是一个全新的 AI 协作平台，核心是**多智能体协作**与**实时聊天**。它与 v2 的用法完全不同。
+| 组件 | 版本 | 说明 |
+|------|------|------|
+| Jupyter AI | 3.0.0 | 多智能体协作平台 |
+| JupyterLab | 4.x | 下一代笔记本界面 |
+| Python | 3.11 | 推荐版本 |
+| PyTorch | 2.5.1 | CPU版本 |
+| TensorFlow | 2.18.0 | CPU版本 |
+| LangChain | 0.3.13 | LLM应用框架 |
+| Ollama | 最新 | 本地模型服务 |
 
-### 快速开始
-
-1. **启动环境**：容器启动后，访问 `http://localhost:8881` 打开 JupyterLab。
-2. **打开聊天界面**：点击 JupyterLab **左侧边栏的 🤖 (Jupyter AI) 图标**。
-3. **选择AI角色**：在聊天界面中，你可以选择不同的 **AI 角色 (Personas)**，例如 “Jupyternaut”、“Assistant” 等。
-4. **开始对话**：在聊天输入框中直接向 AI 提问或发出指令。
-
-### 核心新功能
-
-*   **协作聊天**：可以创建聊天室，同时与多个 AI 角色或**其他人类伙伴**协作。
-*   **安全护栏**：AI 在**执行代码、写入文件或运行终端命令前，必须请求你批准**。
-*   **强大的智能体**：界面中可直接使用 Claude, Copilot, Gemini 等前沿模型（需配置API密钥）。
-*   **共享上下文**：可以直接拖拽文件 (.ipynb, .py, .txt) 或单元格到聊天中作为上下文。
-
-### 配置外部 AI 服务 (如 OpenAI)
-
-Jupyter AI 会**自动读取**你设置在环境变量中的 API 密钥。你可以在启动容器时注入：
+### 1.2 环境变量
 
 ```bash
-docker run -e OPENAI_API_KEY="sk-..." ...
-2.2 加载扩展
+# Jupyter AI 配置
+LITELLM_CONFIG_PATH=/home/jovyan/.jupyter/litellm/config.yaml
+LITELLM_LOCAL_MODEL_COST_MAP=True
 
-2.3 基本使用语法
+# Ollama 配置
+OLLAMA_HOST=http://192.168.112.136:11434
+OLLAMA_BASE_URL=http://192.168.112.136:11434
+OLLAMA_DEFAULT_MODEL=qwen2.5-coder:7b-q4
+OLLAMA_TEMPERATURE=0.7
+MAX_TOKENS=2048
+
+# Hugging Face 镜像
+HF_ENDPOINT=https://hf-mirror.com
+1.3 启动服务
+bash
+./start_jupyter_ai.sh
+访问: http://localhost:8881
+
+2. 快速开始
+2.1 加载 AI 魔法命令
 python
-# 单行命令格式（注意使用 / 而不是 :）
-%ai ollama:qwen2.5-coder:7b-q4 你的问题
+# 加载 v3 魔法命令
+%load_ext jupyter_ai_magic_commands
 
-# 多行单元格格式
-%%ai ollama:qwen2.5-coder:7b-q4
-你的问题
-可以写多行
-参数说明：
+# 查看所有可用提供商
+%ai list
 
-ollama：provider（AI服务提供商）
-
-qwen2.5-coder:7b-q4：模型名称
-
-问题和指令直接写在后面
-
-2.4 代码生成
+# 查看 Ollama 可用模型
+%ai list ollama
+2.2 基础 AI 对话
 python
-# 生成排序算法
-%%ai ollama:qwen2.5-coder:7b-q4
-用 Python 实现一个快速排序算法
+# 单行对话
+%ai ollama/qwen2.5-coder:7b-q4 你好
+
+# 多行对话
+%%ai ollama/qwen2.5-coder:7b-q4
+请用 Python 实现一个快速排序算法
+2.3 带参数的 AI 调用
+python
+# 指定温度参数
+%%ai ollama/qwen2.5-coder:7b-q4 --temperature 0.5
+用简单的语言解释机器学习
+
+# 指定最大输出长度
+%%ai ollama/qwen2.5-coder:7b-q4 --max-tokens 500
+列出 Python 的 10 个最佳实践
+3. Jupyter AI v3 核心功能
+3.1 代码生成
 python
 # 生成类定义
-%%ai ollama:qwen2.5-coder:7b-q4
-实现一个 Python 类，表示银行账户，包含存款、取款、查询余额方法
-python
-# 生成函数
-%%ai ollama:qwen2.5-coder:7b-q4
-写一个函数，判断一个字符串是否是回文串
-python
-# 生成正则表达式
-%%ai ollama:qwen2.5-coder:7b-q4
-写一个正则表达式，匹配中国大陆的手机号码
-python
-# 生成SQL语句
-%%ai ollama:qwen2.5-coder:7b-q4
-写一个SQL查询，查询每个部门工资最高的员工
-2.5 代码解释
+%%ai ollama/qwen2.5-coder:7b-q4
+创建一个 Python 类表示银行账户，包含:
+- 属性: 账号、余额、客户姓名
+- 方法: 存款、取款、查询余额、转账
+- 添加适当的异常处理
+3.2 代码解释
 python
 # 解释复杂代码
-%%ai ollama:qwen2.5-coder:7b-q4
-解释这段代码的作用：
+%%ai ollama/qwen2.5-coder:7b-q4
+详细解释以下代码的工作原理:
+
 def quicksort(arr):
     if len(arr) <= 1:
         return arr
@@ -617,22 +624,12 @@ def quicksort(arr):
     middle = [x for x in arr if x == pivot]
     right = [x for x in arr if x > pivot]
     return quicksort(left) + middle + quicksort(right)
+3.3 代码优化
 python
-# 解释算法原理
-%%ai ollama:qwen2.5-coder:7b-q4
-解释动态规划的原理，并用斐波那契数列举例
-python
-# 解释报错信息
-%%ai ollama:qwen2.5-coder:7b-q4
-这个错误是什么意思？如何解决？
-Traceback (most recent call last):
-  File "<stdin>", line 1, in <module>
-KeyError: 'name'
-2.6 代码优化
-python
-# 性能优化
-%%ai ollama:qwen2.5-coder:7b-q4
-优化这段代码的性能：
+# 性能优化建议
+%%ai ollama/qwen2.5-coder:7b-q4
+优化这段代码的性能:
+
 def find_duplicates(arr):
     result = []
     for i in range(len(arr)):
@@ -640,62 +637,12 @@ def find_duplicates(arr):
             if arr[i] == arr[j] and arr[i] not in result:
                 result.append(arr[i])
     return result
+3.4 单元测试生成
 python
-# 代码重构
-%%ai ollama:qwen2.5-coder:7b-q4
-重构这段代码，使其更符合Python最佳实践：
-def calc(a,b,c):
-    if c == 'add':
-        return a + b
-    elif c == 'sub':
-        return a - b
-    elif c == 'mul':
-        return a * b
-    elif c == 'div':
-        return a / b
-python
-# 简化逻辑
-%%ai ollama:qwen2.5-coder:7b-q4
-简化这段代码的逻辑：
-if x == True:
-    return True
-else:
-    return False
-2.7 代码调试
-python
-# 查找bug
-%%ai ollama:qwen2.5-coder:7b-q4
-这段代码有什么bug？如何修复？
-def divide_list(lst, n):
-    return [lst[i:i+n] for i in range(0, len(lst), n)]
+# 生成单元测试
+%%ai ollama/qwen2.5-coder:7b-q4
+为以下函数生成 pytest 单元测试:
 
-result = divide_list([1,2,3], 0)
-python
-# 边界条件检查
-%%ai ollama:qwen2.5-coder:7b-q4
-检查这段代码的边界条件处理：
-def binary_search(arr, target):
-    left, right = 0, len(arr) - 1
-    while left < right:
-        mid = (left + right) // 2
-        if arr[mid] == target:
-            return mid
-        elif arr[mid] < target:
-            left = mid + 1
-        else:
-            right = mid - 1
-    return -1
-python
-# 异常处理
-%%ai ollama:qwen2.5-coder:7b-q4
-为这段代码添加异常处理：
-def read_file(filename):
-    with open(filename, 'r') as f:
-        return f.read()
-2.8 单元测试生成
-python
-%%ai ollama:qwen2.5-coder:7b-q4
-为以下函数生成单元测试：
 def is_prime(n):
     if n < 2:
         return False
@@ -703,75 +650,39 @@ def is_prime(n):
         if n % i == 0:
             return False
     return True
-2.9 文档生成
+3.5 文档生成
 python
-%%ai ollama:qwen2.5-coder:7b-q4
-为以下函数生成 docstring：
-def calculate_interest(principal, rate, time):
-    return principal * (1 + rate) ** time - principal
-2.10 代码转换
+# 生成 docstring
+%%ai ollama/qwen2.5-coder:7b-q4
+为以下函数生成 Google 风格的 docstring:
+
+def calculate_compound_interest(principal, rate, time, compound_freq=12):
+    """
+    参数:
+        principal: 本金
+        rate: 年利率（小数形式）
+        time: 年数
+        compound_freq: 复利频率（每年次数）
+    """
+    return principal * (1 + rate/compound_freq) ** (compound_freq * time)
+3.6 多轮对话
 python
-# Python转Java
-%%ai ollama:qwen2.5-coder:7b-q4
-将以下 Python 代码转换为 Java：
-def factorial(n):
-    return 1 if n <= 1 else n * factorial(n-1)
-python
-# 列表推导转循环
-%%ai ollama:qwen2.5-coder:7b-q4
-将列表推导式转换为普通循环：
-squares = [x**2 for x in range(10) if x % 2 == 0]
-python
-# 使用lambda改写
-%%ai ollama:qwen2.5-coder:7b-q4
-用 lambda 表达式改写这段代码：
-def add(x, y):
-    return x + y
-2.11 代码审查
-python
-%%ai ollama:qwen2.5-coder:7b-q4
-审查以下代码，指出潜在问题：
-def process_user_data(user_data):
-    result = []
-    for i in range(len(user_data)):
-        if user_data[i]['age'] > 18:
-            user_data[i]['status'] = 'adult'
-            result.append(user_data[i])
-        else:
-            user_data[i]['status'] = 'minor'
-            result.append(user_data[i])
-    return result
-2.12 学习辅助
-python
-# 解释概念
-%%ai ollama:qwen2.5-coder:7b-q4
-解释 Python 中的装饰器，给出3个实际应用场景
-python
-# 对比差异
-%%ai ollama:qwen2.5-coder:7b-q4
-对比列表和元组的区别，包括性能、使用场景、可变性
-python
-# 最佳实践
-%%ai ollama:qwen2.5-coder:7b-q4
-Python 中处理文件的最佳实践有哪些？
-python
-# 面试问题
-%%ai ollama:qwen2.5-coder:7b-q4
-出一道 Python 面试题，考察闭包的知识点，并给出答案
-2.13 格式化输出
-python
-# JSON格式输出
-%%ai ollama:qwen2.5-coder:7b-q4 --format json
-列出5种常见的设计模式，包含名称和描述
-python
-# Markdown表格格式
-%%ai ollama:qwen2.5-coder:7b-q4
-用Markdown表格格式列出Python的常用数据结构及其时间复杂度
-python
-# 指定语言
-%%ai ollama:qwen2.5-coder:7b-q4
-用中文回答：什么是机器学习？
-2.14 使用变量
+# 设定角色
+%%ai ollama/qwen2.5-coder:7b-q4
+你是一个 Python 专家，请用中文回答问题
+
+# 提问
+%%ai ollama/qwen2.5-coder:7b-q4
+什么是装饰器？有什么实际应用场景？
+
+# 深入
+%%ai ollama/qwen2.5-coder:7b-q4
+给我一个用于函数执行时间计时的装饰器示例
+
+# 扩展
+%%ai ollama/qwen2.5-coder:7b-q4
+如何让装饰器同时接受参数？
+3.7 变量传递
 python
 # 定义变量
 code = """
@@ -781,399 +692,29 @@ def fibonacci(n):
     return fibonacci(n-1) + fibonacci(n-2)
 """
 
-# 在AI指令中使用变量
-%%ai ollama:qwen2.5-coder:7b-q4
-优化这段递归代码，避免重复计算：
+# 在 AI 指令中使用变量
+%%ai ollama/qwen2.5-coder:7b-q4
+优化这段递归代码，避免重复计算:
+
 {code}
-2.15 多轮对话
-python
-# 第一轮：设定角色
-%%ai ollama:qwen2.5-coder:7b-q4
-你是一个Python专家，请用中文回答我的问题
-python
-# 第二轮：提问
-%%ai ollama:qwen2.5-coder:7b-q4
-什么是生成器？
-python
-# 第三轮：深入
-%%ai ollama:qwen2.5-coder:7b-q4
-生成器和列表推导式有什么区别？
-python
-# 第四轮：举例
-%%ai ollama:qwen2.5-coder:7b-q4
-给我一个使用生成器读取大文件的例子
-2.16 查看可用模型
-python
-# 列出所有可用的 providers
-%ai list
-python
-# 列出 ollama 的所有模型
-%ai list ollama
-python
-# 使用 ai 命令查看
-%ai list
-2.17 使用其他 AI 服务
-python
-# OpenAI
-%ai openai/gpt-4o 解释什么是闭包
-
-# Anthropic Claude
-%ai anthropic/claude-3-5-sonnet-20241022 用Python实现Web爬虫
-
-# Google Gemini
-%ai google/gemini-1.5-pro 解释机器学习
-2.18 使用 Persona（角色）
-v3.0 支持 Persona 系统，可以为 AI 设定特定角色：
-
-python
-# 查看可用角色
-%ai list personas
-
-# 使用特定角色
-%ai @Jupyternaut 你好
-
-# 在单元格中使用
-%%ai @Jupyternaut
-请帮我分析这段代码的性能
-2.19 聊天界面
-Jupyter AI 还提供了侧边栏聊天界面：
-
-点击 JupyterLab 左侧的 🤖 图标
-
-选择模型提供商和模型
-
-在输入框中输入问题
-
-AI 会在聊天界面中回复
-
-
-
-
-
-3. 已安装工具及使用方法
-3.1 NumPy
-数值计算基础库。
-
-python
-import numpy as np
-
-# 创建数组
-arr = np.array([1, 2, 3, 4, 5])
-zeros = np.zeros((3, 4))
-ones = np.ones((2, 3))
-random_arr = np.random.randn(100)
-
-# 数组运算
-print(arr.mean())      # 平均值: 3.0
-print(arr.std())       # 标准差: 1.41
-print(arr.sum())       # 求和: 15
-print(arr.max())       # 最大值: 5
-print(arr.argmax())    # 最大值索引: 4
-
-# 索引和切片
-print(arr[0])          # 第一个元素
-print(arr[1:3])        # 切片
-print(arr[arr > 2])    # 布尔索引
-
-# 形状操作
-arr_2d = arr.reshape(5, 1)
-print(arr_2d.shape)    # (5, 1)
-
-# 矩阵运算
-matrix = np.random.randn(3, 3)
-print(matrix @ matrix.T)           # 矩阵乘法
-print(np.linalg.inv(matrix))       # 逆矩阵
-print(np.linalg.det(matrix))       # 行列式
-3.2 Pandas
-数据分析核心库。
-
-python
-import pandas as pd
-
-# 创建DataFrame
-df = pd.DataFrame({
-    'name': ['张三', '李四', '王五', '赵六'],
-    'age': [25, 30, 28, 35],
-    'salary': [8000, 12000, 10000, 15000],
-    'department': ['技术', '销售', '技术', '销售']
-})
-
-# 查看数据
-print(df.head())           # 前5行
-print(df.tail(2))          # 后2行
-print(df.info())           # 数据信息
-print(df.describe())       # 统计描述
-
-# 数据筛选
-print(df[df['age'] > 28])                    # 条件筛选
-print(df[df['department'] == '技术'])        # 等于筛选
-print(df[(df['age'] > 25) & (df['salary'] > 9000)])  # 多条件
-
-# 数据操作
-df['bonus'] = df['salary'] * 0.1             # 新增列
-df = df.drop('bonus', axis=1)                # 删除列
-df.rename(columns={'name': '姓名'}, inplace=True)  # 重命名
-
-# 分组聚合
-print(df.groupby('department')['salary'].mean())   # 分组平均值
-print(df.groupby('department').agg({               # 多聚合
-    'salary': ['mean', 'max', 'min'],
-    'age': 'mean'
-}))
-
-# 排序
-print(df.sort_values('salary', ascending=False))   # 降序排序
-
-# 缺失值处理
-df.loc[1, 'age'] = None
-print(df.isnull().sum())          # 统计缺失值
-df['age'] = df['age'].fillna(df['age'].mean())  # 填充缺失值
-
-# 读写文件
-df.to_csv('data.csv', index=False)
-df.to_excel('data.xlsx', index=False)
-df_read = pd.read_csv('data.csv')
-3.3 Matplotlib
-数据可视化基础库。
-
-python
-import matplotlib.pyplot as plt
-import numpy as np
-
-# 折线图
-x = np.linspace(0, 10, 100)
-y1 = np.sin(x)
-y2 = np.cos(x)
-
-plt.figure(figsize=(10, 6))
-plt.plot(x, y1, label='sin(x)', linewidth=2, color='blue')
-plt.plot(x, y2, label='cos(x)', linewidth=2, color='red', linestyle='--')
-plt.xlabel('x', fontsize=12)
-plt.ylabel('y', fontsize=12)
-plt.title('正弦和余弦曲线', fontsize=14)
-plt.legend()
-plt.grid(True, alpha=0.3)
-plt.show()
-
-# 散点图
-x = np.random.randn(200)
-y = np.random.randn(200)
-colors = np.random.randn(200)
-sizes = np.random.randint(20, 200, 200)
-
-plt.figure(figsize=(10, 6))
-plt.scatter(x, y, c=colors, s=sizes, alpha=0.5, cmap='viridis')
-plt.colorbar(label='颜色值')
-plt.xlabel('X')
-plt.ylabel('Y')
-plt.title('散点图')
-plt.show()
-
-# 柱状图
-categories = ['A', 'B', 'C', 'D', 'E']
-values = [23, 45, 56, 78, 34]
-errors = [2, 3, 4, 5, 2]
-
-plt.figure(figsize=(10, 6))
-plt.bar(categories, values, yerr=errors, capsize=5, 
-        color=['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7'])
-plt.xlabel('类别')
-plt.ylabel('数值')
-plt.title('柱状图')
-plt.show()
-
-# 直方图
-data = np.random.randn(1000)
-
-plt.figure(figsize=(10, 6))
-plt.hist(data, bins=30, edgecolor='black', alpha=0.7, color='skyblue')
-plt.xlabel('值')
-plt.ylabel('频数')
-plt.title('直方图')
-plt.axvline(data.mean(), color='red', linestyle='--', label=f'均值: {data.mean():.2f}')
-plt.legend()
-plt.show()
-
-# 饼图
-sizes = [30, 25, 20, 15, 10]
-labels = ['Python', 'Java', 'C++', 'JavaScript', 'Go']
-explode = (0.1, 0, 0, 0, 0)
-
-plt.figure(figsize=(8, 8))
-plt.pie(sizes, explode=explode, labels=labels, autopct='%1.1f%%',
-        shadow=True, startangle=90)
-plt.title('编程语言使用比例')
-plt.show()
-
-# 子图布局
-fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-
-axes[0, 0].plot(x, np.sin(x))
-axes[0, 0].set_title('折线图')
-
-axes[0, 1].scatter(x[:100], y[:100])
-axes[0, 1].set_title('散点图')
-
-axes[1, 0].bar(categories, values)
-axes[1, 0].set_title('柱状图')
-
-axes[1, 1].hist(data, bins=30)
-axes[1, 1].set_title('直方图')
-
-plt.tight_layout()
-plt.show()
-3.4 Seaborn
-统计可视化库。
-
-python
-import seaborn as sns
-import pandas as pd
-import numpy as np
-
-# 设置样式
-sns.set_style('whitegrid')
-sns.set_palette('husl')
-
-# 热力图
-data = np.random.randn(10, 10)
-plt.figure(figsize=(10, 8))
-sns.heatmap(data, annot=True, cmap='coolwarm', center=0,
-            square=True, linewidths=1, cbar_kws={'shrink': 0.8})
-plt.title('热力图')
-plt.show()
-
-# 分布图
-data = np.random.randn(1000)
-plt.figure(figsize=(10, 6))
-sns.histplot(data, bins=30, kde=True, color='blue', stat='density')
-plt.title('分布图')
-plt.show()
-
-# 箱线图
-df = pd.DataFrame({
-    'group': np.repeat(['A', 'B', 'C', 'D'], 100),
-    'value': np.concatenate([
-        np.random.randn(100),
-        np.random.randn(100) + 1,
-        np.random.randn(100) + 2,
-        np.random.randn(100) + 3
-    ])
-})
-
-plt.figure(figsize=(10, 6))
-sns.boxplot(x='group', y='value', data=df, palette='Set3')
-plt.title('箱线图')
-plt.show()
-
-# 小提琴图
-plt.figure(figsize=(10, 6))
-sns.violinplot(x='group', y='value', data=df, palette='muted')
-plt.title('小提琴图')
-plt.show()
-
-# 散点图加回归线
-df_scatter = pd.DataFrame({
-    'x': np.random.randn(200),
-    'y': np.random.randn(200) * 0.5 + np.random.randn(200) * 0.5
-})
-
-plt.figure(figsize=(10, 6))
-sns.regplot(x='x', y='y', data=df_scatter, scatter_kws={'alpha': 0.5}, line_kws={'color': 'red'})
-plt.title('散点图加回归线')
-plt.show()
-
-# 分类散点图
-plt.figure(figsize=(10, 6))
-sns.catplot(x='group', y='value', data=df, kind='swarm', height=6, aspect=1.5)
-plt.title('分类散点图')
-plt.show()
-3.5 Scikit-learn
-机器学习库。
-
-python
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-from sklearn.cluster import KMeans
-import numpy as np
-
-# 分类任务
-X = np.random.randn(200, 5)
-y = (X[:, 0] + X[:, 1] > 0).astype(int)
-
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-
-scaler = StandardScaler()
-X_train = scaler.fit_transform(X_train)
-X_test = scaler.transform(X_test)
-
-clf = RandomForestClassifier(n_estimators=100, random_state=42)
-clf.fit(X_train, y_train)
-
-y_pred = clf.predict(X_test)
-print(f'准确率: {accuracy_score(y_test, y_pred)}')
-print(confusion_matrix(y_test, y_pred))
-print(classification_report(y_test, y_pred))
-
-# 交叉验证
-scores = cross_val_score(clf, X, y, cv=5)
-print(f'交叉验证得分: {scores.mean():.3f} (+/- {scores.std() * 2:.3f})')
-
-# 超参数调优
-param_grid = {
-    'n_estimators': [50, 100, 200],
-    'max_depth': [None, 10, 20],
-    'min_samples_split': [2, 5, 10]
-}
-
-grid_search = GridSearchCV(RandomForestClassifier(random_state=42), param_grid, cv=5)
-grid_search.fit(X_train, y_train)
-print(f'最佳参数: {grid_search.best_params_}')
-print(f'最佳得分: {grid_search.best_score_}')
-
-# 回归任务
-X_reg = np.random.randn(200, 3)
-y_reg = X_reg[:, 0] * 2 + X_reg[:, 1] * 1.5 + np.random.randn(200) * 0.1
-
-reg = LinearRegression()
-reg.fit(X_reg, y_reg)
-print(f'R²分数: {reg.score(X_reg, y_reg)}')
-print(f'系数: {reg.coef_}')
-print(f'截距: {reg.intercept_}')
-
-# 聚类任务
-X_cluster = np.random.randn(300, 2)
-X_cluster[:100] += 3
-X_cluster[100:200] -= 2
-
-kmeans = KMeans(n_clusters=3, random_state=42)
-labels = kmeans.fit_predict(X_cluster)
-print(f'聚类中心: {kmeans.cluster_centers_}')
-print(f'聚类标签分布: {np.bincount(labels)}')
-3.6 PyTorch
-深度学习框架。
-
+4. 深度学习框架使用指南
+4.1 PyTorch 基础
 python
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 
+# 检查版本
+print(f"PyTorch 版本: {torch.__version__}")
+
 # 创建张量
 x = torch.tensor([1, 2, 3, 4, 5], dtype=torch.float32)
-print(f'张量: {x}')
-print(f'设备: {x.device}')
-print(f'类型: {x.dtype}')
+y = torch.randn(3, 4)
+z = torch.zeros(2, 3)
 
-# GPU支持
-if torch.cuda.is_available():
-    x_cuda = x.to('cuda')
-    print(f'已移至GPU: {x_cuda.device}')
-
-# 定义神经网络
-class NeuralNetwork(nn.Module):
+# 简单神经网络
+class SimpleNN(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
         super().__init__()
         self.fc1 = nn.Linear(input_size, hidden_size)
@@ -1191,56 +732,127 @@ class NeuralNetwork(nn.Module):
         return x
 
 # 创建模型
-model = NeuralNetwork(10, 64, 2)
-print(model)
-
-# 定义损失函数和优化器
+model = SimpleNN(10, 64, 2)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-# 准备数据
+# 训练循环示例
 X = torch.randn(1000, 10)
 y = torch.randint(0, 2, (1000,))
 
-dataset = TensorDataset(X, y)
-dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
-
-# 训练循环
-num_epochs = 50
-for epoch in range(num_epochs):
-    total_loss = 0
-    for batch_X, batch_y in dataloader:
-        optimizer.zero_grad()
-        outputs = model(batch_X)
-        loss = criterion(outputs, batch_y)
-        loss.backward()
-        optimizer.step()
-        total_loss += loss.item()
-    
-    if (epoch + 1) % 10 == 0:
-        print(f'Epoch [{epoch+1}/{num_epochs}], Loss: {total_loss/len(dataloader):.4f}')
-
-# 模型评估
-model.eval()
-with torch.no_grad():
-    predictions = model(X[:10])
-    predicted_classes = torch.argmax(predictions, dim=1)
-    print(f'预测结果: {predicted_classes}')
-3.7 LangChain
-LLM应用开发框架。
-
+for epoch in range(10):
+    optimizer.zero_grad()
+    outputs = model(X)
+    loss = criterion(outputs, y)
+    loss.backward()
+    optimizer.step()
+    print(f"Epoch {epoch+1}, Loss: {loss.item():.4f}")
+4.2 TensorFlow 基础
 python
-from langchain.llms import Ollama
-from langchain.chains import LLMChain, ConversationChain
-from langchain.prompts import PromptTemplate
-from langchain.memory import ConversationBufferMemory
-from langchain.document_loaders import TextLoader
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.embeddings import OllamaEmbeddings
-from langchain.vectorstores import Chroma
-from langchain.chains import RetrievalQA
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
 
-# 创建Ollama实例
+# 检查版本和配置
+print(f"TensorFlow 版本: {tf.__version__}")
+print(f"可用设备: {tf.config.list_physical_devices()}")
+
+# 创建 Sequential 模型
+model = keras.Sequential([
+    layers.Dense(64, activation='relu', input_shape=(10,)),
+    layers.Dropout(0.2),
+    layers.Dense(32, activation='relu'),
+    layers.Dropout(0.2),
+    layers.Dense(2, activation='softmax')
+])
+
+# 编译模型
+model.compile(
+    optimizer='adam',
+    loss='sparse_categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+# 生成示例数据
+import numpy as np
+X = np.random.randn(1000, 10)
+y = np.random.randint(0, 2, (1000,))
+
+# 训练模型
+history = model.fit(
+    X, y,
+    epochs=10,
+    batch_size=32,
+    validation_split=0.2,
+    verbose=1
+)
+
+# 模型保存和加载
+model.save('my_model.keras')
+loaded_model = keras.models.load_model('my_model.keras')
+4.3 Hugging Face Transformers
+python
+from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
+
+# 情感分析
+sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
+result = sentiment_analyzer("I love using Jupyter AI for my work!")
+print(result)
+
+# 文本生成
+generator = pipeline("text-generation", model="gpt2")
+result = generator("The future of AI is", max_length=50, num_return_sequences=1)
+print(result[0]['generated_text'])
+
+# 使用本地模型
+tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased")
+
+# 文本分类
+classifier = pipeline("text-classification", model=model, tokenizer=tokenizer)
+result = classifier("This is a great product!")
+print(result)
+4.4 模型转换与优化
+python
+# PyTorch 模型转 ONNX
+import torch.onnx
+
+class SimpleModel(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.fc = torch.nn.Linear(10, 2)
+    
+    def forward(self, x):
+        return self.fc(x)
+
+model = SimpleModel()
+dummy_input = torch.randn(1, 10)
+
+torch.onnx.export(
+    model,
+    dummy_input,
+    "model.onnx",
+    input_names=['input'],
+    output_names=['output'],
+    dynamic_axes={'input': {0: 'batch_size'}, 'output': {0: 'batch_size'}}
+)
+
+# TensorFlow 模型优化
+converter = tf.lite.TFLiteConverter.from_keras_model(model)
+tflite_model = converter.convert()
+
+# 保存 TFLite 模型
+with open('model.tflite', 'wb') as f:
+    f.write(tflite_model)
+5. LangChain 应用开发
+5.1 基础 LLM 调用
+python
+from langchain_community.llms import Ollama
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+
+# 初始化 Ollama
 llm = Ollama(
     model="qwen2.5-coder:7b-q4",
     base_url="http://192.168.112.136:11434",
@@ -1248,43 +860,67 @@ llm = Ollama(
     top_p=0.9
 )
 
-# 简单调用
-response = llm.invoke("什么是Python装饰器？")
+# 直接调用
+response = llm.invoke("什么是机器学习？")
 print(response)
 
 # 使用提示模板
-prompt = PromptTemplate(
-    input_variables=["code"],
-    template="""请解释以下Python代码：
-    
-{code}
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "你是一个 Python 专家助手。"),
+    ("human", "{input}")
+])
 
-请说明：
-1. 代码的功能
-2. 时间复杂度
-3. 可能的改进建议
-"""
+chain = prompt | llm | StrOutputParser()
+result = chain.invoke({"input": "如何优化 Python 代码性能？"})
+print(result)
+5.2 对话记忆
+python
+from langchain.memory import ConversationBufferMemory
+from langchain.chains import ConversationChain
+
+# 创建带记忆的对话链
+memory = ConversationBufferMemory()
+conversation = ConversationChain(
+    llm=llm,
+    memory=memory,
+    verbose=True
 )
 
-chain = LLMChain(llm=llm, prompt=prompt)
-result = chain.run(code="def fib(n): return n if n<=1 else fib(n-1)+fib(n-2)")
-print(result)
-
-# 带记忆的对话
-memory = ConversationBufferMemory()
-conversation = ConversationChain(llm=llm, memory=memory)
-
+# 多轮对话
 print(conversation.predict(input="你好，我叫小明"))
 print(conversation.predict(input="我叫什么名字？"))
-print(conversation.predict(input="用Python实现快速排序"))
+print(conversation.predict(input="帮我写一个计算斐波那契数列的函数"))
+5.3 链式调用
+python
+from langchain.chains import LLMChain
+from langchain.prompts import PromptTemplate
 
-# RAG应用
+# 代码生成链
+code_prompt = PromptTemplate(
+    input_variables=["task", "language"],
+    template="""用 {language} 实现以下功能:
+{task}
+
+请提供完整的代码和简要说明。"""
+)
+
+code_chain = LLMChain(llm=llm, prompt=code_prompt)
+result = code_chain.run(task="快速排序算法", language="Python")
+print(result)
+5.4 RAG (检索增强生成)
+python
+from langchain_community.document_loaders import TextLoader
+from langchain.text_splitter import CharacterTextSplitter
+from langchain_community.embeddings import OllamaEmbeddings
+from langchain_community.vectorstores import Chroma
+from langchain.chains import RetrievalQA
+
 # 加载文档
 loader = TextLoader('document.txt')
 documents = loader.load()
 
 # 分割文本
-text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
 texts = text_splitter.split_documents(documents)
 
 # 创建向量存储
@@ -1294,131 +930,598 @@ embeddings = OllamaEmbeddings(
 )
 vectorstore = Chroma.from_documents(texts, embeddings)
 
-# 创建问答链
+# 创建 RAG 链
 qa_chain = RetrievalQA.from_chain_type(
     llm=llm,
     chain_type="stuff",
-    retriever=vectorstore.as_retriever()
+    retriever=vectorstore.as_retriever(search_kwargs={"k": 3})
 )
 
 # 提问
-answer = qa_chain.run("文档中提到了什么重要信息？")
+answer = qa_chain.run("文章中提到了哪些重要概念？")
 print(answer)
-3.8 其他工具
+6. 向量数据库与 RAG
+6.1 ChromaDB 基础
 python
-# Transformers - 预训练模型
-from transformers import pipeline, AutoTokenizer, AutoModel
-
-# 情感分析
-sentiment = pipeline('sentiment-analysis')
-result = sentiment("I love programming!")
-print(result)
-
-# 文本生成
-generator = pipeline('text-generation', model='gpt2')
-result = generator("The future of AI is", max_length=50)
-print(result)
-
-# ChromaDB - 向量数据库
 import chromadb
+from chromadb.utils import embedding_functions
+
+# 初始化客户端
 client = chromadb.Client()
-collection = client.create_collection("my_docs")
-collection.add(
-    documents=["文档1", "文档2", "文档3"],
-    ids=["id1", "id2", "id3"]
+
+# 创建集合
+collection = client.create_collection(
+    name="my_documents",
+    embedding_function=embedding_functions.DefaultEmbeddingFunction()
 )
-results = collection.query(query_texts=["查询"], n_results=2)
+
+# 添加文档
+collection.add(
+    documents=[
+        "机器学习是人工智能的一个子领域",
+        "深度学习使用多层神经网络",
+        "自然语言处理处理文本数据"
+    ],
+    metadatas=[
+        {"source": "AI基础"},
+        {"source": "深度学习"},
+        {"source": "NLP"}
+    ],
+    ids=["doc1", "doc2", "doc3"]
+)
+
+# 查询
+results = collection.query(
+    query_texts=["神经网络"],
+    n_results=2
+)
 print(results)
 
-# Plotly - 交互式可视化
-import plotly.express as px
-df = px.data.iris()
-fig = px.scatter(df, x='sepal_width', y='sepal_length', color='species')
-fig.show()
-4. 快速开始
-第一步：加载Jupyter AI扩展
-python
-%load_ext jupyter_ai_magics
-第二步：使用AI对话
-python
-%%ai ollama:qwen2.5-coder:7b-q4
-用Python实现一个快速排序算法
-第三步：验证配置
-python
-import os
-print("OLLAMA_HOST:", os.environ.get('OLLAMA_HOST'))
-print("默认模型:", os.environ.get('OLLAMA_DEFAULT_MODEL'))
+# 更新文档
+collection.update(
+    ids=["doc1"],
+    documents=["机器学习是AI的核心技术"],
+    metadatas=[{"source": "AI基础", "updated": True}]
+)
 
-%%ai ollama:qwen2.5-coder:7b-q4
-ping
-5. 使用外部AI服务
+# 删除集合
+client.delete_collection("my_documents")
+6.2 FAISS 向量检索
 python
-# 在 kernel.json 或环境变量中设置
-# OPENAI_API_KEY=sk-xxx
-# ANTHROPIC_API_KEY=sk-ant-xxx
+import numpy as np
+import faiss
 
-# v3.0 会自动读取这些环境变量
-%ai openai:gpt-4o 你的问题
-%ai anthropic:claude-3-5-sonnet-20241022 你的问题
-6. 高级用法
-传递变量给AI
+# 创建向量
+dimension = 128
+vectors = np.random.random((1000, dimension)).astype('float32')
+
+# 创建索引
+index = faiss.IndexFlatL2(dimension)
+index.add(vectors)
+
+# 搜索
+query = np.random.random((1, dimension)).astype('float32')
+distances, indices = index.search(query, k=5)
+print(f"最近的5个向量索引: {indices}")
+print(f"对应的距离: {distances}")
+
+# 保存和加载
+faiss.write_index(index, "index.faiss")
+loaded_index = faiss.read_index("index.faiss")
+7. API 集成
+7.1 OpenAI API
 python
-code = "def add(a,b): return a+b"
-%%ai ollama:qwen2.5-coder:7b-q4
-优化这段代码：{code}
-多轮对话
+from openai import OpenAI
+
+# 配置客户端（需要在环境变量中设置 OPENAI_API_KEY）
+client = OpenAI()
+
+# 对话补全
+response = client.chat.completions.create(
+    model="gpt-3.5-turbo",
+    messages=[
+        {"role": "system", "content": "你是 Python 专家助手。"},
+        {"role": "user", "content": "如何优化 Python 性能？"}
+    ],
+    temperature=0.7,
+    max_tokens=500
+)
+print(response.choices[0].message.content)
+
+# 流式响应
+stream = client.chat.completions.create(
+    model="gpt-3.5-turbo",
+    messages=[{"role": "user", "content": "写一个快速排序"}],
+    stream=True
+)
+
+for chunk in stream:
+    if chunk.choices[0].delta.content:
+        print(chunk.choices[0].delta.content, end="")
+7.2 Anthropic Claude API
 python
-%%ai ollama:qwen2.5-coder:7b-q4
-你是一个Python专家
-%%ai ollama:qwen2.5-coder:7b-q4
-什么是装饰器？
-%%ai ollama:qwen2.5-coder:7b-q4
-给我一个实际例子
-指定模型参数
+from anthropic import Anthropic
+
+# 配置客户端（需要设置 ANTHROPIC_API_KEY）
+client = Anthropic()
+
+# 调用 Claude
+message = client.messages.create(
+    model="claude-3-5-sonnet-20241022",
+    max_tokens=1024,
+    temperature=0.7,
+    messages=[
+        {"role": "user", "content": "解释一下 Python 的装饰器"}
+    ]
+)
+print(message.content[0].text)
+7.3 Google Gemini API
 python
-%%ai ollama:qwen2.5-coder:7b-q4 --temperature 0.5 --max-tokens 1000
-用JSON格式列出5种设计模式
-7. 常见问题排查
-问题1：%%ai not found
+import google.generativeai as genai
+
+# 配置 API
+genai.configure(api_key="YOUR_API_KEY")
+
+# 创建模型
+model = genai.GenerativeModel('gemini-pro')
+
+# 生成内容
+response = model.generate_content("解释一下梯度下降算法")
+print(response.text)
+
+# 多轮对话
+chat = model.start_chat()
+chat.send_message("你好")
+chat.send_message("帮我写一个 Python 函数")
+8. 高级技巧
+8.1 自定义提示模板
 python
-%load_ext jupyter_ai_magics
-问题2：Connection refused
+from string import Template
+
+class CodeReviewPrompt:
+    template = Template("""
+    请对以下 ${language} 代码进行代码审查:
+    
+    ```${language}
+    ${code}
+请从以下方面分析:
+
+代码风格和可读性
+
+性能问题
+
+潜在的 Bug
+
+安全漏洞
+
+改进建议
+
+请用中文回答。
+""")
+
+def format(self, code, language="Python"):
+return self.template.substitute(code=code, language=language)
+
+使用示例
+reviewer = CodeReviewPrompt()
+code = """
+def process_data(data):
+result = []
+for i in range(len(data)):
+if data[i] > 0:
+result.append(data[i] * 2)
+return result
+"""
+
+prompt = reviewer.format(code, "Python")
+print(prompt)
+
+text
+
+### 8.2 批量处理
+
+```python
+from concurrent.futures import ThreadPoolExecutor
+import time
+
+def process_with_ai(texts, llm):
+    """批量处理文本"""
+    results = []
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = [executor.submit(llm.invoke, text) for text in texts]
+        for future in futures:
+            results.append(future.result())
+    return results
+
+# 使用示例
+texts = [
+    "解释什么是闭包",
+    "列表和元组的区别",
+    "如何使用生成器",
+    "什么是装饰器",
+    "异常处理的最佳实践"
+]
+
+# results = process_with_ai(texts, llm)
+8.3 缓存优化
 python
-import os
-os.environ['OLLAMA_HOST'] = 'http://192.168.112.136:11434'
-%reload_ext jupyter_ai_magics
-问题3：查看可用模型
+from functools import lru_cache
+import hashlib
+import json
+
+class AICache:
+    def __init__(self, llm, maxsize=128):
+        self.llm = llm
+        self.cache = {}
+    
+    def _get_key(self, prompt):
+        """生成缓存键"""
+        return hashlib.md5(prompt.encode()).hexdigest()
+    
+    def invoke(self, prompt):
+        """带缓存的调用"""
+        key = self._get_key(prompt)
+        if key not in self.cache:
+            self.cache[key] = self.llm.invoke(prompt)
+        return self.cache[key]
+    
+    def clear(self):
+        """清空缓存"""
+        self.cache.clear()
+
+# 使用示例
+# cached_llm = AICache(llm)
+# response = cached_llm.invoke("什么是人工智能")
+8.4 流式输出处理
 python
+def stream_ai_response(llm, prompt):
+    """处理流式响应"""
+    for chunk in llm.stream(prompt):
+        print(chunk, end="", flush=True)
+    print()
+
+# 使用示例
+# stream_ai_response(llm, "写一个快速排序算法")
+8.5 与 Pandas 集成
+python
+import pandas as pd
+
+def analyze_dataframe_with_ai(df, llm):
+    """使用 AI 分析 DataFrame"""
+    prompt = f"""
+    分析以下数据:
+    
+    数据形状: {df.shape}
+    列名: {list(df.columns)}
+    数据类型: {df.dtypes.to_dict()}
+    缺失值: {df.isnull().sum().to_dict()}
+    描述统计: {df.describe().to_dict()}
+    
+    请提供:
+    1. 数据摘要
+    2. 发现的数据模式
+    3. 潜在问题
+    4. 分析建议
+    """
+    
+    return llm.invoke(prompt)
+
+# 使用示例
+# df = pd.read_csv('data.csv')
+# analysis = analyze_dataframe_with_ai(df, llm)
+# print(analysis)
+9. 性能优化
+9.1 模型选择建议
+任务类型	推荐模型	参数量	说明
+简单问答	qwen2.5-coder:1.5b	1.5B	快速响应
+代码生成	qwen2.5-coder:7b	7B	平衡性能
+复杂推理	qwen2.5-coder:14b	14B	更准确
+代码审查	qwen2.5-coder:32b	32B	最佳效果
+9.2 内存优化
+python
+# PyTorch 内存优化
+import torch
+
+# 清空 GPU 缓存
+if torch.cuda.is_available():
+    torch.cuda.empty_cache()
+
+# 使用梯度检查点节省内存
+from torch.utils.checkpoint import checkpoint
+
+# 模型量化
+import torch.quantization as quant
+
+# TensorFlow 内存优化
+import tensorflow as tf
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError as e:
+        print(e)
+9.3 并发处理
+python
+import asyncio
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+
+async def async_llm_call(llm, prompts):
+    """异步并发调用 LLM"""
+    tasks = [llm.ainvoke(prompt) for prompt in prompts]
+    results = await asyncio.gather(*tasks)
+    return results
+
+# 使用示例
+# prompts = ["问题1", "问题2", "问题3"]
+# results = await async_llm_call(llm, prompts)
+10. 常见问题排查
+10.1 AI 命令不工作
+python
+# 问题: %%ai 命令找不到
+# 解决方案: 重新加载扩展
+
+%load_ext jupyter_ai_magic_commands
 %ai list
-8. 性能优化建议
-任务类型	推荐模型	说明
-简单代码生成	qwen2.5-coder:1.5b	快速响应
-复杂代码分析	qwen2.5-coder:7b	平衡性能
-大规模审查	qwen2.5-coder:14b	更准确
-启用缓存
+10.2 Ollama 连接失败
+bash
+# 检查 Ollama 服务
+curl http://192.168.112.136:11434/api/tags
+
+# 测试模型调用
+curl http://192.168.112.136:11434/api/generate -d '{
+  "model": "qwen2.5-coder:7b-q4",
+  "prompt": "你好"
+}'
 python
-from langchain.cache import InMemoryCache
-from langchain.globals import set_llm_cache
-set_llm_cache(InMemoryCache())
-9. 注意事项
-首次调用模型需加载到内存，有延迟
+# Python 测试
+import requests
+response = requests.post(
+    'http://192.168.112.136:11434/api/generate',
+    json={'model': 'qwen2.5-coder:7b-q4', 'prompt': '你好'}
+)
+print(response.json()['response'])
+10.3 配置文件问题
+python
+import os
+import yaml
 
-外部API需要互联网连接和费用
+# 检查配置
+config_path = os.environ.get('LITELLM_CONFIG_PATH')
+print(f"配置路径: {config_path}")
+print(f"文件存在: {os.path.exists(config_path)}")
 
-Ollama本地模型完全免费
+if os.path.exists(config_path):
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
+        print(f"模型列表: {config.get('model_list', [])}")
+10.4 内存不足
+python
+# 限制模型内存使用
+import os
+os.environ['OLLAMA_NUM_PARALLEL'] = '1'  # 限制并发
+os.environ['OLLAMA_MAX_LOADED_MODELS'] = '1'  # 限制加载模型数
 
-不要硬编码API Key，使用环境变量
+# 清理缓存
+import gc
+gc.collect()
 
-每个Notebook只需加载一次扩展
+# PyTorch 内存清理
+import torch
+torch.cuda.empty_cache() if torch.cuda.is_available() else None
+10.5 调试模式
+python
+# 启用详细日志
+import logging
+logging.basicConfig(level=logging.DEBUG)
 
-10. 相关资源
-Jupyter AI: https://jupyter-ai.readthedocs.io/
+# 查看扩展加载状态
+%ai list
 
-Ollama: https://ollama.com/library
+# 查看日志
+!jupyter lab log
+11. 最佳实践
+11.1 提示工程技巧
+python
+# 使用系统提示词设定角色
+system_prompt = "你是一个资深的 Python 架构师，擅长代码审查和性能优化。"
 
-LangChain: https://python.langchain.com/
+# 使用少样本学习
+few_shot_examples = """
+示例1:
+输入: 计算列表平均值
+输出: 
+def average(lst):
+    return sum(lst) / len(lst) if lst else 0
 
-PyTorch: https://pytorch.org/
+示例2:
+输入: 检查回文字符串
+输出:
+def is_palindrome(s):
+    s = s.lower().replace(' ', '')
+    return s == s[::-1]
+"""
 
-TensorFlow: https://tensorflow.org/
+# 明确输出格式
+format_prompt = "请以 JSON 格式输出，包含 'code' 和 'explanation' 字段"
+11.2 代码组织
+python
+# 创建 AI 辅助函数库
+class AIAssistant:
+    def __init__(self, model="qwen2.5-coder:7b-q4"):
+        self.model = model
+    
+    def generate_code(self, task, language="Python"):
+        prompt = f"用 {language} 实现: {task}"
+        return self._call_ai(prompt)
+    
+    def explain_code(self, code):
+        prompt = f"解释这段代码:\n{code}"
+        return self._call_ai(prompt)
+    
+    def review_code(self, code):
+        prompt = f"代码审查:\n{code}"
+        return self._call_ai(prompt)
+    
+    def _call_ai(self, prompt):
+        # 实现 AI 调用
+        pass
+
+# 使用示例
+assistant = AIAssistant()
+code = assistant.generate_code("快速排序算法")
+print(code)
+11.3 错误处理
+python
+def safe_ai_call(func, retries=3):
+    """带重试的 AI 调用"""
+    for i in range(retries):
+        try:
+            return func()
+        except Exception as e:
+            print(f"尝试 {i+1}/{retries} 失败: {e}")
+            if i == retries - 1:
+                raise
+            time.sleep(2 ** i)  # 指数退避
+
+# 使用示例
+# result = safe_ai_call(lambda: llm.invoke("你的问题"))
+11.4 结果验证
+python
+def validate_ai_output(output, expected_format="text"):
+    """验证 AI 输出质量"""
+    if not output or len(output) < 10:
+        return False
+    
+    if expected_format == "code":
+        # 检查是否包含代码
+        return "def " in output or "class " in output or "import " in output
+    
+    if expected_format == "json":
+        # 检查是否是有效 JSON
+        try:
+            import json
+            json.loads(output)
+            return True
+        except:
+            return False
+    
+    return True
+11.5 成本优化
+python
+# 缓存常用结果
+from functools import lru_cache
+
+@lru_cache(maxsize=100)
+def cached_ai_query(query):
+    """缓存 AI 查询结果"""
+    return llm.invoke(query)
+
+# 使用更小的模型处理简单任务
+def smart_ai_call(complexity="simple"):
+    if complexity == "simple":
+        model = "qwen2.5-coder:1.5b"
+    else:
+        model = "qwen2.5-coder:7b-q4"
+    # 使用对应模型
+11.6 安全建议
+python
+# 1. 不要硬编码 API 密钥
+import os
+API_KEY = os.environ.get('OPENAI_API_KEY')
+
+# 2. 验证用户输入
+def sanitize_input(user_input):
+    """清理用户输入"""
+    # 移除潜在的危险字符
+    dangerous_chars = ['`', '$', '(', ')', ';']
+    for char in dangerous_chars:
+        user_input = user_input.replace(char, '')
+    return user_input
+
+# 3. 限制输出长度
+def safe_ai_call(prompt, max_tokens=2048):
+    return llm.invoke(prompt, max_tokens=max_tokens)
+
+# 4. 记录 AI 交互日志
+import logging
+logging.basicConfig(
+    filename='ai_interactions.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(message)s'
+)
+📝 附录
+A. 常用命令速查
+命令	说明
+%ai list	查看所有提供商
+%ai list ollama	查看 Ollama 模型
+%ai reset	重置对话历史
+%load_ext jupyter_ai_magic_commands	加载 AI 扩展
+%%ai model --temperature 0.5	带参数调用
+B. 环境变量速查
+变量	默认值	说明
+OLLAMA_HOST	http://192.168.112.136:11434	Ollama 服务地址
+OLLAMA_DEFAULT_MODEL	qwen2.5-coder:7b-q4	默认模型
+OLLAMA_TEMPERATURE	0.7	温度参数
+MAX_TOKENS	2048	最大输出长度
+C. 故障排除快速指南
+AI 命令无效: 运行 %load_ext jupyter_ai_magic_commands
+
+模型不存在: 运行 %ai list 查看可用模型
+
+Ollama 连接失败: 检查 OLLAMA_HOST 环境变量
+
+配置未加载: 检查 LITELLM_CONFIG_PATH 路径
+
+文档版本: v1.0
+最后更新: 2026-05-04
+Jupyter AI 版本: 3.0.0
+
+Happy Coding with Jupyter AI v3! 🚀
 EOF
+
+创建快速参考卡片
+cat > /home/jovyan/QUICK_REFERENCE.md << 'EOF'
+
+Jupyter AI v3 快速参考卡片
+🚀 启动
+bash
+./start_jupyter_ai.sh
+📖 基础命令
+python
+%load_ext jupyter_ai_magic_commands  # 加载扩展
+%ai list                              # 查看模型
+%%ai ollama/qwen2.5-coder:7b-q4      # 使用模型
+🔥 深度学习
+python
+import torch, tensorflow as tf
+print(torch.__version__, tf.__version__)
+🦜 LangChain
+python
+from langchain_community.llms import Ollama
+llm = Ollama(model="qwen2.5-coder:7b-q4", base_url="http://192.168.112.136:11434")
+🗄️ 向量数据库
+python
+import chromadb
+client = chromadb.Client()
+📊 数据科学
+python
+import numpy as np, pandas as pd
+import matplotlib.pyplot as plt
+🔧 常用技巧
+多轮对话自动记忆上下文
+
+用 {variable} 传递变量
+
+用 --temperature 0.5 调整随机性
+
+用 --max-tokens 500 限制输出
+
+🐛 问题排查
+python
+%ai list                    # 检查模型
+%load_ext jupyter_ai_magic_commands  # 重新加载
+!curl $OLLAMA_HOST/api/tags # 测试 Ollama
+EOF
+
+
