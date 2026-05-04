@@ -134,23 +134,33 @@ conda run -n ${CONDA_ENV_NAME} pip install \
 # ============================================
 echo "⚙️ 配置 LiteLLM 模型..."
 
+# 3. 创建正确的配置文件
 mkdir -p /home/jovyan/.jupyter/litellm
-
-# 使用 cat 和变量替换（注意：不使用 'EOF' 引号，以便解析变量）
-cat > /home/jovyan/.jupyter/litellm/config.yaml << EOF
+cat > /home/jovyan/.jupyter/litellm/config.yaml << 'EOF'
 model_list:
   - model_name: qwen2.5-coder:7b-q4
     litellm_params:
       model: ollama/qwen2.5-coder:7b-q4
-      api_base: ${OLLAMA_HOST:-http://192.168.112.136:11434}
-      temperature: ${OLLAMA_TEMPERATURE:-0.7}
-      max_tokens: ${MAX_TOKENS:-2048}
+      api_base: http://192.168.112.136:11434
+      api_key: none
+      temperature: 0.7
+      max_tokens: 2048
   - model_name: deepseek-coder:6.7b
     litellm_params:
       model: ollama/deepseek-coder:6.7b
-      api_base: ${OLLAMA_HOST:-http://192.168.112.136:11434}
-      temperature: ${OLLAMA_TEMPERATURE:-0.7}
-      max_tokens: ${MAX_TOKENS:-2048}
+      api_base: http://192.168.112.136:11434
+      api_key: none
+      temperature: 0.7
+      max_tokens: 2048
+
+litellm_settings:
+  drop_params: True
+  set_verbose: False
+  callbacks: []
+
+general_settings:
+  master_key: sk-1234
+  database_url: sqlite:////home/jovyan/.jupyter/litellm/litellm.db
 EOF
 
 echo "✅ LiteLLM 配置完成"
@@ -236,6 +246,70 @@ c.InteractiveShellApp.extensions = [
 c.LabApp.extensions_in_dev_mode = False
 EOF
 
+# 4. 创建更完善的 jupyter_server_config.py
+cat > /home/jovyan/.jupyter/jupyter_server_config.py << 'EOF'
+# ==========================================
+# Jupyter Server 配置 - 强制加载 LiteLLM
+# ==========================================
+
+import os
+import sys
+
+# 强制设置环境变量（确保内核和服务端都能看到）
+os.environ['LITELLM_CONFIG_PATH'] = '/home/jovyan/.jupyter/litellm/config.yaml'
+os.environ['LITELLM_LOCAL_MODEL_COST_MAP'] = 'True'
+os.environ['OLLAMA_HOST'] = os.environ.get('OLLAMA_HOST', 'http://192.168.112.136:11434')
+os.environ['OLLAMA_BASE_URL'] = os.environ.get('OLLAMA_BASE_URL', 'http://192.168.112.136:11434')
+
+# 验证配置文件存在
+config_path = os.environ['LITELLM_CONFIG_PATH']
+if os.path.exists(config_path):
+    print(f"✅ LiteLLM config loaded: {config_path}")
+else:
+    print(f"⚠️  Warning: LiteLLM config not found at {config_path}")
+
+# 可选：预加载 LiteLLM 模块
+try:
+    from jupyter_ai_litellm import __version__
+    print(f"✅ jupyter_ai_litellm version: {__version__}")
+except ImportError as e:
+    print(f"⚠️  jupyter_ai_litellm import error: {e}")
+
+# 关闭 token 自动保存（避免权限问题）
+c = get_config()  # noqa
+c.ServerApp.token = ''
+c.ServerApp.password = ''
+c.ServerApp.open_browser = False
+c.ServerApp.allow_origin = '*'
+c.ServerApp.disable_check_xsrf = True
+EOF
+
+# 5. 创建内核启动脚本（确保内核继承环境变量）
+mkdir -p /home/jovyan/.ipython/profile_default/startup/
+cat > /home/jovyan/.ipython/profile_default/startup/00_ai_env.py << 'EOF'
+"""自动加载 AI 环境变量到 IPython 内核"""
+import os
+
+# 设置 LiteLLM 配置
+os.environ.setdefault('LITELLM_CONFIG_PATH', '/home/jovyan/.jupyter/litellm/config.yaml')
+os.environ.setdefault('LITELLM_LOCAL_MODEL_COST_MAP', 'True')
+os.environ.setdefault('OLLAMA_HOST', 'http://192.168.112.136:11434')
+os.environ.setdefault('OLLAMA_BASE_URL', 'http://192.168.112.136:11434')
+
+# 打印确认信息
+print("🤖 AI Environment initialized")
+print(f"   LITELLM_CONFIG_PATH: {os.environ.get('LITELLM_CONFIG_PATH')}")
+print(f"   OLLAMA_HOST: {os.environ.get('OLLAMA_HOST')}")
+
+# 验证配置文件
+config_path = os.environ.get('LITELLM_CONFIG_PATH', '')
+if config_path and os.path.exists(config_path):
+    print(f"   ✅ Config file exists")
+else:
+    print(f"   ⚠️  Config file not found: {config_path}")
+EOF
+
+
 # ============================================
 # 创建 .env 到【不会被覆盖】的目录
 # ============================================
@@ -287,28 +361,28 @@ echo "✅ .env 已创建在 /home/jovyan/.env.final（安全区）"
 # ============================================
 echo "🚀 创建启动脚本..."
 
+# 6. 更新启动脚本
 cat > /home/jovyan/start_jupyter_ai.sh << 'EOF'
 #!/bin/bash
-# 设置 LiteLLM 配置（必须在 conda activate 之前）
+
+# 设置 LiteLLM 配置路径
 export LITELLM_CONFIG_PATH=/home/jovyan/.jupyter/litellm/config.yaml
 export LITELLM_LOCAL_MODEL_COST_MAP=True
 
 # 初始化 conda
 source /opt/conda/etc/profile.d/conda.sh
 
-# 激活 AI 环境
+# 激活环境
 conda activate ai_env
+
+# 重新导出环境变量
 export LITELLM_CONFIG_PATH=/home/jovyan/.jupyter/litellm/config.yaml
 export LITELLM_LOCAL_MODEL_COST_MAP=True
-# 设置环境变量
 export JUPYTER_ENABLE_LAB=yes
 export OLLAMA_HOST=${OLLAMA_HOST:-http://192.168.112.136:11434}
 export OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://192.168.112.136:11434}
 export OLLAMA_DEFAULT_MODEL=${OLLAMA_DEFAULT_MODEL:-qwen2.5-coder:7b-q4}
 export HF_ENDPOINT=${HF_ENDPOINT:-https://hf-mirror.com}
-
-# 不需要设置 PYTHONPATH，Python 会自动搜索虚拟环境的 site-packages
-# export PYTHONPATH="..."  ← 删除这行，会覆盖默认搜索路径
 
 echo "=========================================="
 echo "🚀 启动 Jupyter-AI 服务"
@@ -316,15 +390,36 @@ echo "=========================================="
 echo "JupyterLab: http://localhost:8881"
 echo "Ollama 服务器: ${OLLAMA_HOST}"
 echo "默认模型: ${OLLAMA_DEFAULT_MODEL}"
+echo "LiteLLM 配置: ${LITELLM_CONFIG_PATH}"
 echo "=========================================="
+
+# 验证配置
+if [ ! -f "${LITELLM_CONFIG_PATH}" ]; then
+    echo "❌ 错误: 配置文件不存在"
+    exit 1
+fi
+
+echo "✅ 配置文件验证通过"
 echo "=========启动 jupyter lab========="
-# 启动时自动把 .env 复制到 work 目录（解决 VOLUME 覆盖问题）
 cp -f /home/jovyan/.env.final /home/jovyan/work/.env
-exec jupyter lab --config=/home/jovyan/.jupyter/jupyter_lab_config.py
+# 启动 Jupyter Lab
+exec jupyter lab --config=/home/jovyan/.jupyter/jupyter_server_config.py
 EOF
 
-# 添加执行权限
 chmod +x /home/jovyan/start_jupyter_ai.sh
+
+# 7. 修复权限
+chown -R jovyan:users /home/jovyan/.jupyter
+chown -R jovyan:users /home/jovyan/.ipython
+
+echo "=========================================="
+echo "✅ 修复完成！"
+echo "=========================================="
+echo "请执行以下步骤："
+echo "1. 停止当前 Jupyter 服务 (Ctrl+C)"
+echo "2. 运行: ./start_jupyter_ai.sh"
+echo "3. 在 notebook 中测试:%ai list"
+echo "=========================================="
 
 echo "🧹 清理缓存和临时文件..."
 
