@@ -109,16 +109,14 @@ conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall protobuf==3.20.3
 # PyTorch 2.5.1（最新稳定版）
 echo "  安装 PyTorch 2.5.1..."
 conda run -n ${CONDA_ENV_NAME} pip install \
-    torch==2.5.1 \
-    torchvision==0.20.1 \
-    torchaudio==2.5.1 \
+    torch==2.11.0 \
+    torchvision==0.25.0 \
+    torchaudio==2.11.0 \
     --index-url https://download.pytorch.org/whl/cpu
 
 # TensorFlow 2.18.0（最新稳定版）
 echo "  安装 TensorFlow 2.18.0..."
-conda run -n ${CONDA_ENV_NAME} pip install \
-    tensorflow==2.18.0 \
-    tensorflow-cpu==2.18.0
+conda run -n ${CONDA_ENV_NAME} pip install tensorflow-cpu==2.21.0
 
 # Keras 3.6.0（最新版）
 echo "  安装 Keras 3.6.0..."
