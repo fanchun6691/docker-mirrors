@@ -135,7 +135,7 @@ conda run -n ${CONDA_ENV_NAME} pip install \
     langchain-core==0.3.29 \
     langchain-community==0.3.13 \
     langchain-openai==0.2.14 \
-    langchain-anthropic==0.2.8 \
+    langchain-anthropic==1.4.0 \
     langchain-google-genai==2.0.8 \
     langchain-ollama==0.2.2 \
     langchain-text-splitters==0.3.4 \
