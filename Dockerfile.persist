@@ -63,13 +63,11 @@ RUN chmod +x /home/jovyan/install_persist.sh
 # ============================================
 RUN /home/jovyan/install_persist.sh
 
-# ============================================
-# 复制启动脚本和配置文件
-# ============================================
-COPY --chown=jovyan:users start_jupyter_ai.sh /home/jovyan/start_jupyter_ai.sh
-COPY --chown=jovyan:users .env.final /home/jovyan/.env.final
-COPY --chown=jovyan:users JUPYTER_AI_V3_COMPLETE_GUIDE.md /home/jovyan/JUPYTER_AI_V3_COMPLETE_GUIDE.md
-COPY --chown=jovyan:users QUICK_REFERENCE.md /home/jovyan/QUICK_REFERENCE.md
+# 可选文件：如果存在则复制，不存在就跳过
+COPY --chown=jovyan:users start_jupyter_ai.sh /home/jovyan/start_jupyter_ai.sh 2>/dev/null || true
+COPY --chown=jovyan:users .env.final /home/jovyan/.env.final 2>/dev/null || true
+COPY --chown=jovyan:users JUPYTER_AI_V3_COMPLETE_GUIDE.md /home/jovyan/JUPYTER_AI_V3_COMPLETE_GUIDE.md 2>/dev/null || true
+COPY --chown=jovyan:users QUICK_REFERENCE.md /home/jovyan/QUICK_REFERENCE.md 2>/dev/null || true
 
 RUN chmod +x /home/jovyan/start_jupyter_ai.sh
 
