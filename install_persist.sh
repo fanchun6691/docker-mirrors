@@ -121,8 +121,7 @@ conda run -n ${CONDA_ENV_NAME} pip install keras==3.6.0
 echo "  安装 ONNX 生态..."
 conda run -n ${CONDA_ENV_NAME} pip install \
     onnx==1.16.0 \
-    onnxruntime==1.19.2 \
-    onnx2torch==0.3.0
+    onnxruntime==1.19.2 
 
 # 恢复 protobuf 版本（确保兼容性）
 conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall protobuf==3.20.3
