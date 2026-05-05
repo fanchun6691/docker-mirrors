@@ -9,18 +9,17 @@ echo "=========================================="
 
 # 配置变量（从环境变量读取，与 Dockerfile 保持一致）
 CONDA_ENV_NAME="ai_env"
-PYTHON_VERSION="3.11"  # v3推荐使用3.11
+PYTHON_VERSION="3.11"
 OLLAMA_EXTERNAL_URL="${OLLAMA_HOST:-http://192.168.112.136:11434}"
 OLLAMA_DEFAULT_MODEL="${OLLAMA_DEFAULT_MODEL:-qwen2.5-coder:7b-q4}"
-JUPYTER_PORT="${JUPYTER_PORT:-8881}"  # 新增：支持端口配置
-JUPYTER_TOKEN="${JUPYTER_TOKEN:-}"     # 新增：支持 token 配置
-JUPYTER_PASSWORD="${JUPYTER_PASSWORD:-}" # 新增：支持密码配置
-
+JUPYTER_PORT="${JUPYTER_PORT:-8881}"
+JUPYTER_TOKEN="${JUPYTER_TOKEN:-}"
+JUPYTER_PASSWORD="${JUPYTER_PASSWORD:-}"
 
 # 初始化 conda
 source /opt/conda/etc/profile.d/conda.sh
 
-# 检查环境是否已存在，存在则跳过
+# 检查并创建环境
 if conda env list | grep -q "^${CONDA_ENV_NAME} "; then
     echo "✅ Conda 环境 ${CONDA_ENV_NAME} 已存在，跳过创建"
 else
@@ -28,50 +27,68 @@ else
     conda create -n ${CONDA_ENV_NAME} python=${PYTHON_VERSION} -y
 fi
 
+# ============================================
+# 激活环境（后续所有命令都在此环境下执行）
+# ============================================
+conda activate ${CONDA_ENV_NAME}
+
 # 升级 pip
-conda run -n ${CONDA_ENV_NAME} pip install --upgrade pip setuptools wheel
+echo "📦 升级 pip..."
+pip install --upgrade pip setuptools wheel
 
 # ============================================
-# 安装 Node.js 20（v3需要，用于前端构建）
+# 安装 Node.js 20
 # ============================================
 echo "📦 安装 Node.js 20..."
 conda install -n ${CONDA_ENV_NAME} -c conda-forge nodejs=20 -y
 node --version
 
 # ============================================
-# 1. 先安装 JupyterLab 4.x 核心（v3强制要求）
+# 1. 安装 JupyterLab 4.x
 # ============================================
 echo "📦 安装 JupyterLab 4.x..."
-conda run -n ${CONDA_ENV_NAME} pip install \
-    "jupyterlab>=4.0.0,<5.0.0" \
-    "jupyter_server"
+pip install "jupyterlab>=4.0.0,<5.0.0" "jupyter_server"
 
 # ============================================
 # 2. 验证 JupyterLab 版本
 # ============================================
-JLAB_VERSION=$(conda run -n ${CONDA_ENV_NAME} jupyter lab --version)
+JLAB_VERSION=$(jupyter lab --version)
 echo "✅ JupyterLab 版本: ${JLAB_VERSION}"
 
 # ============================================
-# 3. 安装 Jupyter AI v3.0 核心包
+# 3. 安装 Jupyter AI v3.0 核心包（关键修复）
 # ============================================
 echo "📦 安装 Jupyter AI v3.0..."
-conda run -n ${CONDA_ENV_NAME} pip install \
-    jupyter-ai>=3.0.0 \
-    jupyter-ai-magic-commands \
-    jupyter-ai-litellm \
-    jupyter-ai-jupyternaut \
-    jupyter-ai-tools \
-    jupyter-server-mcp \
+
+# 清理缓存并安装
+pip cache purge
+pip install --no-cache-dir --force-reinstall \
+    "jupyter-ai>=3.0.0" \
+    "jupyter-ai-magic-commands" \
+    "jupyter-ai-litellm" \
+    "jupyter-ai-jupyternaut" \
+    "jupyter-ai-tools" \
+    "jupyter-server-mcp" \
     ipykernel \
     ipywidgets
 
 # ============================================
-# 4. 安装 Ollama 集成（v3需要通过 langchain-ollama）
-#  LangChain 生态系统（最新版本）
+# 3.6 启用服务器扩展（关键！之前缺失）
+# ============================================
+echo "🔌 启用 Jupyter AI 服务器扩展..."
+jupyter server extension enable jupyter_ai
+jupyter server extension enable jupyter_ai_litellm
+jupyter server extension enable jupyter_ai_jupyternaut
+jupyter server extension enable jupyter_ai_tools
+
+echo "📋 验证服务器扩展:"
+jupyter server extension list | grep jupyter_ai
+
+# ============================================
+# 4. 安装 LangChain 生态
 # ============================================
 echo "🦜 安装 LangChain 生态..."
-conda run -n ${CONDA_ENV_NAME} pip install \
+pip install \
     langchain \
     langchain-core \
     langchain-community \
@@ -83,20 +100,19 @@ conda run -n ${CONDA_ENV_NAME} pip install \
     langchain-experimental
 
 # ============================================
-# 5. 重建 JupyterLab 确保前端扩展生效
+# 5. 重建 JupyterLab（在激活的环境下）
 # ============================================
 echo "🔨 重建 JupyterLab 扩展..."
 jupyter lab build --minimize=False
 
-# 验证扩展安装
-echo "📋 验证扩展列表:"
-jupyter labextension list
+echo "📋 验证前端扩展:"
+jupyter labextension list | grep -E "jupyter-ai|jupyternaut"
 
 # ============================================
 # 6. 数据科学基础库
 # ============================================
 echo "📚 安装数据科学基础库..."
-conda run -n ${CONDA_ENV_NAME} pip install \
+pip install \
     numpy \
     pandas \
     matplotlib \
@@ -106,46 +122,31 @@ conda run -n ${CONDA_ENV_NAME} pip install \
     xgboost
 
 # ============================================
-# 7. 深度学习框架（最新版本）
+# 7. 深度学习框架
 # ============================================
 echo "🔥 安装深度学习框架..."
 
-# 修复 protobuf 版本兼容性
-conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall protobuf==3.20.3
+pip install --force-reinstall protobuf==3.20.3
 
-# PyTorch 2.5.1（最新稳定版）
-echo "  安装 PyTorch 2.5.1..."
-conda run -n ${CONDA_ENV_NAME} pip install \
-    torch \
-    torchvision \
-    torchaudio \
-    --index-url https://download.pytorch.org/whl/cpu
+echo "  安装 PyTorch..."
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
-# TensorFlow 2.18.0（最新稳定版）
-echo "  安装 TensorFlow 2.18.0..."
-conda run -n ${CONDA_ENV_NAME} pip install tensorflow-cpu==2.21.0
+echo "  安装 TensorFlow..."
+pip install tensorflow-cpu
 
-# Keras 3.6.0（最新版）
-echo "  安装 Keras 3.6.0..."
-conda run -n ${CONDA_ENV_NAME} pip install keras==3.6.0
+echo "  安装 Keras..."
+pip install keras
 
-
-# ONNX 支持
 echo "  安装 ONNX 生态..."
-conda run -n ${CONDA_ENV_NAME} pip install \
-    onnx  \
-    onnxruntime
+pip install onnx onnxruntime
 
-# 恢复 protobuf 版本（确保兼容性）
-conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall protobuf==3.20.3
-
-
+pip install --force-reinstall protobuf==3.20.3
 
 # ============================================
-# 9. AI 模型工具（最新版本）
+# 9. AI 模型工具
 # ============================================
 echo "🤗 安装 AI 模型工具..."
-conda run -n ${CONDA_ENV_NAME} pip install \
+pip install \
     transformers \
     datasets \
     accelerate \
@@ -155,8 +156,7 @@ conda run -n ${CONDA_ENV_NAME} pip install \
     tokenizers \
     huggingface-hub
 
-# API 客户端
-conda run -n ${CONDA_ENV_NAME} pip install \
+pip install \
     openai \
     anthropic \
     google-generativeai \
@@ -168,7 +168,7 @@ conda run -n ${CONDA_ENV_NAME} pip install \
 # 10. 向量数据库
 # ============================================
 echo "🗄️ 安装向量数据库..."
-conda run -n ${CONDA_ENV_NAME} pip install \
+pip install \
     chromadb \
     faiss-cpu \
     pinecone-client \
@@ -180,7 +180,7 @@ conda run -n ${CONDA_ENV_NAME} pip install \
 # 11. 可视化库
 # ============================================
 echo "📊 安装可视化库..."
-conda run -n ${CONDA_ENV_NAME} pip install \
+pip install \
     plotly \
     bokeh \
     altair \
@@ -192,7 +192,7 @@ conda run -n ${CONDA_ENV_NAME} pip install \
 # 12. 工具库
 # ============================================
 echo "🔧 安装工具库..."
-conda run -n ${CONDA_ENV_NAME} pip install \
+pip install \
     requests \
     tqdm \
     python-dotenv \
@@ -211,11 +211,15 @@ conda run -n ${CONDA_ENV_NAME} pip install \
 # 13. Jupyter 扩展
 # ============================================
 echo "🧩 安装 Jupyter 扩展..."
-conda run -n ${CONDA_ENV_NAME} pip install \
+pip install \
     jupyterlab-git \
     jupyterlab-lsp \
     jupyterlab-code-formatter \
     jupyterlab-execute-time
+
+echo "=========================================="
+echo "✅ Jupyter AI v3.0 安装完成！"
+echo "=========================================="
 
 # ============================================
 # 14. 配置 LiteLLM 模型列表
