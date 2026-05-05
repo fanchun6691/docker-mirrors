@@ -491,24 +491,34 @@ rm -rf /tmp/pip-*
 rm -rf /tmp/tmp*
 
 # ============================================
-# 22. 验证安装
+# 22. 验证安装（在激活的环境下执行）
 # ============================================
 echo "✅ 验证安装..."
 
+# 确保在激活的环境下
+source /opt/conda/etc/profile.d/conda.sh
+conda activate ${CONDA_ENV_NAME}
+
+echo "当前环境: ${CONDA_DEFAULT_ENV}"
+echo "Python 路径: $(which python)"
+
+echo ""
 echo "JupyterLab 版本:"
-conda run -n ${CONDA_ENV_NAME} jupyter-lab --version
+jupyter-lab --version
 
 echo ""
 echo "已安装的 AI 包:"
-conda run -n ${CONDA_ENV_NAME} pip list | grep -E "jupyter-ai|langchain|torch|tensorflow|transformers"
+pip list | grep -E "jupyter-ai|langchain|torch|tensorflow|transformers"
 
 echo ""
 echo "PyTorch 版本:"
-conda run -n ${CONDA_ENV_NAME} python -c "import torch; print(f'  PyTorch: {torch.__version__}')" 2>/dev/null || echo "  PyTorch: 未安装"
+python -c "import torch; print(f'  PyTorch: {torch.__version__}')" 2>/dev/null || echo "  PyTorch: 未安装"
 
 echo "TensorFlow 版本:"
-conda run -n ${CONDA_ENV_NAME} python -c "import tensorflow as tf; print(f'  TensorFlow: {tf.__version__}')" 2>/dev/null || echo "  TensorFlow: 未安装"
+python -c "import tensorflow as tf; print(f'  TensorFlow: {tf.__version__}')" 2>/dev/null || echo "  TensorFlow: 未安装"
 
+echo "Jupyter AI 服务器扩展状态:"
+jupyter server extension list | grep jupyter_ai
 echo ""
 echo "=========================================="
 echo "✅ Jupyter AI v3.0 安装完成！"
