@@ -86,7 +86,7 @@ conda run -n ${CONDA_ENV_NAME} pip install \
 # 5. 重建 JupyterLab 确保前端扩展生效
 # ============================================
 echo "🔨 重建 JupyterLab 扩展..."
-conda run -n ${CONDA_ENV_NAME} jupyter lab build --minimize=False
+jupyter lab build --minimize=False
 
 # 验证扩展安装
 echo "📋 验证扩展列表:"
