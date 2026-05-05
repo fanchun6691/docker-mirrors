@@ -9,6 +9,10 @@ LABEL maintainer="Jupyter AI Team"
 LABEL description="Jupyter AI v3.0 with PyTorch, TensorFlow, LangChain, and Ollama support"
 
 # 设置环境变量（构建时）
+# 设置环境变量（可被覆盖）
+ENV JUPYTER_PORT=8881
+ENV JUPYTER_TOKEN=
+ENV JUPYTER_PASSWORD=
 ENV CONDA_ENV_NAME=ai_env
 ENV PYTHON_VERSION=3.11
 ENV JUPYTER_ENABLE_LAB=yes

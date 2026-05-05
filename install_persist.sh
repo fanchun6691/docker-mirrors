@@ -12,6 +12,10 @@ CONDA_ENV_NAME="ai_env"
 PYTHON_VERSION="3.11"  # v3推荐使用3.11
 OLLAMA_EXTERNAL_URL="${OLLAMA_HOST:-http://192.168.112.136:11434}"
 OLLAMA_DEFAULT_MODEL="${OLLAMA_DEFAULT_MODEL:-qwen2.5-coder:7b-q4}"
+JUPYTER_PORT="${JUPYTER_PORT:-8881}"  # 新增：支持端口配置
+JUPYTER_TOKEN="${JUPYTER_TOKEN:-}"     # 新增：支持 token 配置
+JUPYTER_PASSWORD="${JUPYTER_PASSWORD:-}" # 新增：支持密码配置
+
 
 # 初始化 conda
 source /opt/conda/etc/profile.d/conda.sh
@@ -263,6 +267,7 @@ cat > ${KERNEL_DIR}/kernel.json << EOF
   "debugger": true
  },
  "env": {
+  "JUPYTER_PORT": "\${JUPYTER_PORT:-8881}",
   "OLLAMA_HOST": "${OLLAMA_EXTERNAL_URL}",
   "OLLAMA_BASE_URL": "${OLLAMA_EXTERNAL_URL}",
   "OLLAMA_DEFAULT_MODEL": "${OLLAMA_DEFAULT_MODEL}",
@@ -283,29 +288,55 @@ echo "⚙️ 配置 JupyterLab v3..."
 CONFIG_DIR="/home/jovyan/.jupyter"
 mkdir -p ${CONFIG_DIR}
 
-# 统一的 jupyter_server_config.py（v3精简版）
-cat > ${CONFIG_DIR}/jupyter_server_config.py << 'EOF'
+
+# ============================================
+# 16. 配置 JupyterLab（v3专用配置）- 使用环境变量
+# ============================================
+echo "⚙️ 配置 JupyterLab v3..."
+
+CONFIG_DIR="/home/jovyan/.jupyter"
+mkdir -p ${CONFIG_DIR}
+
+# 统一的 jupyter_server_config.py（使用环境变量）
+cat > ${CONFIG_DIR}/jupyter_server_config.py << EOF
 import os
+
+# 从环境变量读取配置
+JUPYTER_PORT = int(os.environ.get('JUPYTER_PORT', 8881))
+JUPYTER_TOKEN = os.environ.get('JUPYTER_TOKEN', '')
+JUPYTER_PASSWORD = os.environ.get('JUPYTER_PASSWORD', '')
+OLLAMA_HOST = os.environ.get('OLLAMA_HOST', 'http://192.168.112.136:11434')
 
 # 设置环境变量
 os.environ.setdefault('LITELLM_CONFIG_PATH', '/home/jovyan/.jupyter/litellm/config.yaml')
 os.environ.setdefault('LITELLM_LOCAL_MODEL_COST_MAP', 'True')
-os.environ.setdefault('OLLAMA_HOST', 'http://192.168.112.136:11434')
-os.environ.setdefault('OLLAMA_BASE_URL', 'http://192.168.112.136:11434')
+os.environ.setdefault('OLLAMA_HOST', OLLAMA_HOST)
+os.environ.setdefault('OLLAMA_BASE_URL', OLLAMA_HOST)
 
 # Server 配置
 c = get_config()
 c.ServerApp.allow_root = True
 c.ServerApp.ip = '0.0.0.0'
-c.ServerApp.port = 8881
+c.ServerApp.port = JUPYTER_PORT
 c.ServerApp.open_browser = False
-c.IdentityProvider.token = ''
-c.ServerApp.password = ''
 c.ServerApp.allow_origin = '*'
 c.ServerApp.allow_remote_access = True
 c.ServerApp.root_dir = '/home/jovyan'
 c.ServerApp.trust_xheaders = True
 c.ServerApp.disable_check_xsrf = True
+
+# 认证配置（优先使用 token，如果没有则允许无密码）
+if JUPYTER_TOKEN:
+    c.IdentityProvider.token = JUPYTER_TOKEN
+    print(f"✅ 使用 Token 认证")
+elif JUPYTER_PASSWORD:
+    from jupyter_server.auth import passwd
+    c.IdentityProvider.hashed_password = passwd(JUPYTER_PASSWORD)
+    print(f"✅ 使用密码认证")
+else:
+    c.IdentityProvider.token = ''
+    c.IdentityProvider.password = ''
+    print(f"⚠️  无认证模式（仅限开发环境）")
 
 c.ContentsManager.allow_hidden = True
 c.LabApp.extensions_in_dev_mode = False
@@ -316,9 +347,10 @@ c.ServerApp.jpserver_extensions = {
 }
 
 print(f"✅ Jupyter AI v3 配置加载完成")
+print(f"   Port: {JUPYTER_PORT}")
+print(f"   Ollama: {OLLAMA_HOST}")
 print(f"   LiteLLM config: {os.environ.get('LITELLM_CONFIG_PATH')}")
 EOF
-
 # ============================================
 # 17. 创建内核启动脚本（v3专用）
 # ============================================
@@ -385,10 +417,15 @@ PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 EOF
 
 # ============================================
-# 19. 创建启动脚本
+# 19. 创建启动脚本（使用环境变量）
 # ============================================
 cat > /home/jovyan/start_jupyter_ai.sh << 'EOF'
 #!/bin/bash
+
+# 设置默认值（支持环境变量覆盖）
+export JUPYTER_PORT=${JUPYTER_PORT:-8881}
+export JUPYTER_TOKEN=${JUPYTER_TOKEN:-}
+export JUPYTER_PASSWORD=${JUPYTER_PASSWORD:-}
 
 source /opt/conda/etc/profile.d/conda.sh
 conda activate ai_env
@@ -397,7 +434,7 @@ export LITELLM_CONFIG_PATH=/home/jovyan/.jupyter/litellm/config.yaml
 export LITELLM_LOCAL_MODEL_COST_MAP=True
 export JUPYTER_ENABLE_LAB=yes
 export OLLAMA_HOST=${OLLAMA_HOST:-http://192.168.112.136:11434}
-export OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://192.168.112.136:11434}
+export OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-${OLLAMA_HOST}}
 export OLLAMA_DEFAULT_MODEL=${OLLAMA_DEFAULT_MODEL:-qwen2.5-coder:7b-q4}
 
 # 深度学习框架环境变量
@@ -407,7 +444,7 @@ export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 echo "=========================================="
 echo "🚀 启动 Jupyter AI v3.0 服务"
 echo "=========================================="
-echo "JupyterLab: http://localhost:8881"
+echo "JupyterLab: http://localhost:${JUPYTER_PORT}"
 echo "Ollama: ${OLLAMA_HOST}"
 echo "默认模型: ${OLLAMA_DEFAULT_MODEL}"
 echo "PyTorch: $(python -c 'import torch; print(torch.__version__)' 2>/dev/null || echo '未安装')"
@@ -415,7 +452,7 @@ echo "TensorFlow: $(python -c 'import tensorflow as tf; print(tf.__version__)' 2
 echo "=========================================="
 
 cp -f /home/jovyan/.env.final /home/jovyan/work/.env 2>/dev/null || true
-exec jupyter lab --config=/home/jovyan/.jupyter/jupyter_server_config.py
+exec conda run -n ai_env jupyter lab --config=/home/jovyan/.jupyter/jupyter_server_config.py
 EOF
 
 chmod +x /home/jovyan/start_jupyter_ai.sh
