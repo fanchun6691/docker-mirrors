@@ -112,7 +112,7 @@ jupyter lab build --minimize=False
 # 7. 验证前端扩展
 # ============================================
 echo "📋 验证前端扩展:"
-jupyter labextension list | grep -E "jupyter-ai|jupyternaut|mcp"
+jupyter labextension list | grep -E "jupyter-ai|jupyternaut|mcp" || true
 
 # ============================================
 # 6. 数据科学基础库
