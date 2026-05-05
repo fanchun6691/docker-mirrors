@@ -94,11 +94,10 @@ pip install \
 # 3.6 启用服务器扩展（关键！之前缺失）
 # ============================================
 echo "🔌 启用 Jupyter AI 服务器扩展..."
-jupyter server extension enable jupyter_ai
-jupyter server extension enable jupyter_ai_litellm
-jupyter server extension enable jupyter_ai_jupyternaut   # 如果安装了
-jupyter server extension enable jupyter_ai_tools        # 如果安装了
-jupyter server extension enable jupyter_server_mcp
+jupyter server extension enable jupyter_ai_litellm --sys-prefix
+jupyter server extension enable jupyter_ai_jupyternaut --sys-prefix   # 如果安装了
+jupyter server extension enable jupyter_ai_tools  --sys-prefix      # 如果安装了
+jupyter server extension enable jupyter_server_mcp --sys-prefix
 
 echo "📋 验证服务器扩展:"
 jupyter server extension list | grep jupyter
