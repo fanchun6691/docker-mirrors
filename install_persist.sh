@@ -40,7 +40,7 @@ node --version
 echo "📦 安装 JupyterLab 4.x..."
 conda run -n ${CONDA_ENV_NAME} pip install \
     "jupyterlab>=4.0.0,<5.0.0" \
-    "jupyter_server>=2.0.0"
+    "jupyter_server"
 
 # ============================================
 # 2. 验证 JupyterLab 版本
@@ -55,8 +55,8 @@ echo "📦 安装 Jupyter AI v3.0..."
 conda run -n ${CONDA_ENV_NAME} pip install \
     "jupyter-ai>=3.0.0" \
     "jupyter-ai-magic-commands" \
-    ipykernel>=6.0.0 \
-    ipywidgets>=8.0.0
+    ipykernel \
+    ipywidgets
 
 # ============================================
 # 4. 安装 Ollama 集成（v3需要通过 langchain-ollama）
@@ -64,16 +64,15 @@ conda run -n ${CONDA_ENV_NAME} pip install \
 # ============================================
 echo "🦜 安装 LangChain 生态..."
 conda run -n ${CONDA_ENV_NAME} pip install \
-    langchain==1.0.8 \
-    langchain-core==1.0.7 \
-    langchain-community==0.3.13 \
-    langchain-openai==0.0.11 \
-    langchain-anthropic==1.0.0 \
-    langchain-google-genai==2.1.0 \
-    langchain-ollama==0.3.0 \
-    langchain-text-splitters==1.0.0 \
-    langchain-experimental==0.4.0 \
-    langchain-ollama==0.3.0 
+    langchain \
+    langchain-core \
+    langchain-community \
+    langchain-openai \
+    langchain-anthropic \
+    langchain-google-genai \
+    langchain-ollama \
+    langchain-text-splitters \
+    langchain-experimental
 
 # ============================================
 # 5. 重建 JupyterLab 确保前端扩展生效
@@ -90,13 +89,13 @@ conda run -n ${CONDA_ENV_NAME} jupyter labextension list
 # ============================================
 echo "📚 安装数据科学基础库..."
 conda run -n ${CONDA_ENV_NAME} pip install \
-    numpy>=1.24.0 \
-    pandas>=2.0.0 \
-    matplotlib>=3.7.0 \
-    seaborn>=0.12.0 \
-    scikit-learn>=1.3.0 \
-    scipy>=1.10.0 \
-    xgboost>=2.0.0
+    numpy \
+    pandas \
+    matplotlib \
+    seaborn \
+    scikit-learn \
+    scipy \
+    xgboost
 
 # ============================================
 # 7. 深度学习框架（最新版本）
@@ -109,9 +108,9 @@ conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall protobuf==3.20.3
 # PyTorch 2.5.1（最新稳定版）
 echo "  安装 PyTorch 2.5.1..."
 conda run -n ${CONDA_ENV_NAME} pip install \
-    torch==2.11.0 \
-    torchvision==0.25.0 \
-    torchaudio==2.11.0 \
+    torch \
+    torchvision \
+    torchaudio \
     --index-url https://download.pytorch.org/whl/cpu
 
 # TensorFlow 2.18.0（最新稳定版）
@@ -126,8 +125,8 @@ conda run -n ${CONDA_ENV_NAME} pip install keras==3.6.0
 # ONNX 支持
 echo "  安装 ONNX 生态..."
 conda run -n ${CONDA_ENV_NAME} pip install \
-    onnx==1.16.0 \
-    onnxruntime==1.19.2 
+    onnx  \
+    onnxruntime
 
 # 恢复 protobuf 版本（确保兼容性）
 conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall protobuf==3.20.3
@@ -139,76 +138,76 @@ conda run -n ${CONDA_ENV_NAME} pip install --force-reinstall protobuf==3.20.3
 # ============================================
 echo "🤗 安装 AI 模型工具..."
 conda run -n ${CONDA_ENV_NAME} pip install \
-    transformers==4.46.3 \
-    datasets==3.1.0 \
-    accelerate==1.1.1 \
-    peft==0.13.2 \
-    bitsandbytes==0.44.1 \
-    sentencepiece==0.2.0 \
-    tokenizers==0.20.3 \
-    huggingface-hub==0.26.2
+    transformers \
+    datasets \
+    accelerate \
+    peft \
+    bitsandbytes \
+    sentencepiece \
+    tokenizers \
+    huggingface-hub
 
 # API 客户端
 conda run -n ${CONDA_ENV_NAME} pip install \
-    openai==1.55.3 \
-    anthropic==0.40.0 \
-    google-generativeai==0.8.3 \
-    mistralai==1.1.0 \
-    groq==0.12.0 \
-    cohere==5.10.0
+    openai \
+    anthropic \
+    google-generativeai \
+    mistralai \
+    groq \
+    cohere
 
 # ============================================
 # 10. 向量数据库
 # ============================================
 echo "🗄️ 安装向量数据库..."
 conda run -n ${CONDA_ENV_NAME} pip install \
-    chromadb==0.5.20 \
-    faiss-cpu==1.9.0 \
-    pinecone-client==5.0.1 \
-    qdrant-client==1.12.1 \
-    weaviate-client==4.9.4 \
-    pgvector==0.3.4
+    chromadb \
+    faiss-cpu \
+    pinecone-client \
+    qdrant-client \
+    weaviate-client \
+    pgvector
 
 # ============================================
 # 11. 可视化库
 # ============================================
 echo "📊 安装可视化库..."
 conda run -n ${CONDA_ENV_NAME} pip install \
-    plotly==5.24.1 \
-    bokeh==3.6.0 \
-    altair==5.4.1 \
-    dash==2.18.1 \
-    streamlit==1.38.0 \
-    gradio==5.7.1
+    plotly \
+    bokeh \
+    altair \
+    dash \
+    streamlit \
+    gradio
 
 # ============================================
 # 12. 工具库
 # ============================================
 echo "🔧 安装工具库..."
 conda run -n ${CONDA_ENV_NAME} pip install \
-    requests>=2.31.0 \
-    tqdm>=4.66.0 \
-    python-dotenv>=1.0.0 \
-    pyyaml>=6.0 \
-    httpx>=0.27.0 \
-    aiohttp>=3.10.0 \
-    pypdf>=5.0.0 \
-    python-docx>=1.1.0 \
-    openpyxl>=3.1.0 \
-    pillow>=10.0.0 \
-    click>=8.1.0 \
-    rich>=13.7.0 \
-    loguru>=0.7.2
+    requests \
+    tqdm \
+    python-dotenv \
+    pyyaml \
+    httpx \
+    aiohttp \
+    pypdf \
+    python-docx \
+    openpyxl \
+    pillow \
+    click \
+    rich \
+    loguru
 
 # ============================================
 # 13. Jupyter 扩展
 # ============================================
 echo "🧩 安装 Jupyter 扩展..."
 conda run -n ${CONDA_ENV_NAME} pip install \
-    jupyterlab-git>=0.50.0 \
-    jupyterlab-lsp>=5.1.0 \
-    jupyterlab-code-formatter>=3.0.0 \
-    jupyterlab-execute-time>=3.0.0
+    jupyterlab-git \
+    jupyterlab-lsp \
+    jupyterlab-code-formatter \
+    jupyterlab-execute-time
 
 # ============================================
 # 14. 配置 LiteLLM 模型列表
