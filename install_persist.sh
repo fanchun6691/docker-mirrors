@@ -1465,7 +1465,7 @@ Jupyter AI 版本: 3.0.0
 Happy Coding with Jupyter AI v3! 🚀
 EOF
 
-创建快速参考卡片
+#创建快速参考卡片
 cat > /home/jovyan/QUICK_REFERENCE.md << 'EOF'
 
 Jupyter AI v3 快速参考卡片
