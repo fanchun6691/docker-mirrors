@@ -95,18 +95,6 @@ pip install \
 # ============================================
 echo "🔌 启用 Jupyter AI 服务器扩展..."
 # ==============================================
-# 启用所有被禁用的 JupyterLab 扩展（确保 %%ai 完全正常）
-# ==============================================
-jupyter labextension enable @jupyter/docprovider-extension --sys-prefix
-jupyter labextension enable @jupyterlab/codemirror-extension:binding --sys-prefix
-jupyter labextension enable @jupyterlab/completer-extension:base-service --sys-prefix
-jupyter labextension enable @jupyterlab/filebrowser-extension:defaultFileBrowser --sys-prefix
-jupyter labextension enable @jupyterlab/fileeditor-extension:language-server --sys-prefix
-jupyter labextension enable @jupyterlab/lsp-extension:settings --sys-prefix
-jupyter labextension enable @jupyterlab/notebook-extension:cell-executor --sys-prefix
-jupyter labextension enable @jupyterlab/notebook-extension:language-server --sys-prefix
-jupyter labextension enable jupyterlab-chat-extension:inputToolbarFactory --sys-prefix
-
 jupyter server extension enable jupyter_ai_litellm --sys-prefix
 jupyter server extension enable jupyter_ai_jupyternaut --sys-prefix   # 如果安装了
 jupyter server extension enable jupyter_ai_tools  --sys-prefix      # 如果安装了
