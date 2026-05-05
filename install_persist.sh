@@ -63,23 +63,14 @@ echo "📦 安装 Jupyter AI v3.0..."
 # 清理缓存并安装
 pip cache purge
 pip install --no-cache-dir --force-reinstall \
-    "jupyter-ai>=3.0.0" \
-    "jupyter-ai-magic-commands" \
-    "jupyter-ai-litellm" \
-    "jupyter-ai-jupyternaut" \
-    "jupyter-ai-tools" \
-    "jupyter-server-mcp" \
+  "jupyter-ai>=3.0.0" \
+  "jupyter-ai-magic-commands" \
+  "jupyter-ai-litellm" \
+  "jupyter-ai-jupyternaut" \
+  "jupyter-ai-tools" \
+  "jupyter_server_mcp" \
     ipykernel \
     ipywidgets
-
-# ============================================
-# 3.6 启用服务器扩展（关键！之前缺失）
-# ============================================
-echo "🔌 启用 Jupyter AI 服务器扩展..."
-jupyter server extension enable jupyter_ai
-jupyter server extension enable jupyter_ai_litellm
-jupyter server extension enable jupyter_ai_jupyternaut
-jupyter server extension enable jupyter_ai_tools
 
 echo "📋 验证服务器扩展:"
 jupyter server extension list | grep jupyter_ai
@@ -100,13 +91,29 @@ pip install \
     langchain-experimental
 
 # ============================================
-# 5. 重建 JupyterLab（在激活的环境下）
+# 3.6 启用服务器扩展（关键！之前缺失）
+# ============================================
+echo "🔌 启用 Jupyter AI 服务器扩展..."
+jupyter server extension enable jupyter_ai
+jupyter server extension enable jupyter_ai_litellm
+jupyter server extension enable jupyter_ai_jupyternaut   # 如果安装了
+jupyter server extension enable jupyter_ai_tools        # 如果安装了
+jupyter server extension enable jupyter_server_mcp
+
+echo "📋 验证服务器扩展:"
+jupyter server extension list | grep jupyter
+
+# ============================================
+# 6. 重建 JupyterLab（扩展启用后）
 # ============================================
 echo "🔨 重建 JupyterLab 扩展..."
 jupyter lab build --minimize=False
 
+# ============================================
+# 7. 验证前端扩展
+# ============================================
 echo "📋 验证前端扩展:"
-jupyter labextension list | grep -E "jupyter-ai|jupyternaut"
+jupyter labextension list | grep -E "jupyter-ai|jupyternaut|mcp"
 
 # ============================================
 # 6. 数据科学基础库
@@ -126,7 +133,7 @@ pip install \
 # ============================================
 echo "🔥 安装深度学习框架..."
 
-pip install --force-reinstall protobuf==3.20.3
+pip install --force-reinstall protobuf
 
 echo "  安装 PyTorch..."
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
@@ -140,7 +147,7 @@ pip install keras
 echo "  安装 ONNX 生态..."
 pip install onnx onnxruntime
 
-pip install --force-reinstall protobuf==3.20.3
+
 
 # ============================================
 # 9. AI 模型工具
