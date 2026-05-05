@@ -94,6 +94,19 @@ pip install \
 # 3.6 启用服务器扩展（关键！之前缺失）
 # ============================================
 echo "🔌 启用 Jupyter AI 服务器扩展..."
+# ==============================================
+# 启用所有被禁用的 JupyterLab 扩展（确保 %%ai 完全正常）
+# ==============================================
+jupyter labextension enable @jupyter/docprovider-extension --sys-prefix
+jupyter labextension enable @jupyterlab/codemirror-extension:binding --sys-prefix
+jupyter labextension enable @jupyterlab/completer-extension:base-service --sys-prefix
+jupyter labextension enable @jupyterlab/filebrowser-extension:defaultFileBrowser --sys-prefix
+jupyter labextension enable @jupyterlab/fileeditor-extension:language-server --sys-prefix
+jupyter labextension enable @jupyterlab/lsp-extension:settings --sys-prefix
+jupyter labextension enable @jupyterlab/notebook-extension:cell-executor --sys-prefix
+jupyter labextension enable @jupyterlab/notebook-extension:language-server --sys-prefix
+jupyter labextension enable jupyterlab-chat-extension:inputToolbarFactory --sys-prefix
+
 jupyter server extension enable jupyter_ai_litellm --sys-prefix
 jupyter server extension enable jupyter_ai_jupyternaut --sys-prefix   # 如果安装了
 jupyter server extension enable jupyter_ai_tools  --sys-prefix      # 如果安装了
@@ -365,6 +378,44 @@ print(f"   Port: {JUPYTER_PORT}")
 print(f"   Ollama: {OLLAMA_HOST}")
 print(f"   LiteLLM config: {os.environ.get('LITELLM_CONFIG_PATH')}")
 EOF
+
+#创建或修改 Jupyter AI 配置文件
+mkdir -p /home/jovyan/.jupyter
+cat > /home/jovyan/.jupyter/jupyter_ai_config.json << 'EOF'
+{
+  "AiExtension": {
+    "lang_chain_models": {
+      "providers": {
+        "ollama": {
+          "models": [
+            {
+              "id": "qwen2.5-coder:7b-q4",
+              "name": "Qwen 2.5 Coder 7B",
+              "params": {
+                "base_url": "http://192.168.112.136:11434",
+                "temperature": 0.7,
+                "num_predict": 2048
+              }
+            },
+            {
+              "id": "deepseek-coder:6.7b",
+              "name": "DeepSeek Coder 6.7B",
+              "params": {
+                "base_url": "http://192.168.112.136:11434",
+                "temperature": 0.7,
+                "num_predict": 2048
+              }
+            }
+          ]
+        }
+      }
+    },
+    "model_provider_id": "ollama",
+    "model_id": "qwen2.5-coder:7b-q4"
+  }
+}
+EOF
+
 # ============================================
 # 17. 创建内核启动脚本（v3专用）
 # ============================================
