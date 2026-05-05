@@ -57,8 +57,12 @@ echo "✅ JupyterLab 版本: ${JLAB_VERSION}"
 # ============================================
 echo "📦 安装 Jupyter AI v3.0..."
 conda run -n ${CONDA_ENV_NAME} pip install \
-    "jupyter-ai>=3.0.0" \
-    "jupyter-ai-magic-commands" \
+    jupyter-ai>=3.0.0 \
+    jupyter-ai-magic-commands \
+    jupyter-ai-litellm \
+    jupyter-ai-jupyternaut \
+    jupyter-ai-tools \
+    jupyter-server-mcp \
     ipykernel \
     ipywidgets
 
@@ -452,7 +456,12 @@ echo "TensorFlow: $(python -c 'import tensorflow as tf; print(tf.__version__)' 2
 echo "=========================================="
 
 cp -f /home/jovyan/.env.final /home/jovyan/work/.env 2>/dev/null || true
-exec conda run -n ai_env jupyter lab --config=/home/jovyan/.jupyter/jupyter_server_config.py
+# 直接在当前激活的环境中启动 Jupyter Lab
+exec jupyter lab \
+    --port=${JUPYTER_PORT} \
+    --ip=0.0.0.0 \
+    --no-browser \
+    --config=/home/jovyan/.jupyter/jupyter_server_config.py
 EOF
 
 chmod +x /home/jovyan/start_jupyter_ai.sh
