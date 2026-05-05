@@ -90,7 +90,7 @@ jupyter lab build --minimize=False
 
 # 验证扩展安装
 echo "📋 验证扩展列表:"
-conda run -n ${CONDA_ENV_NAME} jupyter labextension list
+jupyter labextension list
 
 # ============================================
 # 6. 数据科学基础库
