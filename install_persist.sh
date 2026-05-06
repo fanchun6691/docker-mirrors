@@ -325,16 +325,14 @@ mkdir -p /home/jovyan/.ipython/profile_default/startup/
 cat > /home/jovyan/.ipython/profile_default/startup/01_load_ai_magics.py << 'EOF'
 import os
 
-# 设置 Ollama 环境变量
-os.environ["OLLAMA_HOST"] = "http://192.168.112.136:11434"
-
-# 加载 AI 魔法命令
+# 确保环境变量已设置
+if not os.environ.get('OLLAMA_HOST'):
+    os.environ["OLLAMA_HOST"] = "http://192.168.112.136:11434"
+# 只加载魔法命令，不打印任何内容
 try:
-    %load_ext jupyter_ai_magic_commands
-    print("✅ 已自动加载 AI 魔法命令：%ai、%%ai")
-    print(f"✅ Ollama 已配置: {os.environ.get('OLLAMA_HOST')}")
-except Exception as e:
-    print(f"⚠️ 加载魔法命令失败：{e}")
+    get_ipython().run_line_magic('load_ext', 'jupyter_ai_magic_commands')
+except Exception:
+    pass  # 静默失败，不影响内核启动
 EOF
 
 # ============================================
@@ -485,43 +483,19 @@ EOF
 # ============================================
 # 17. 创建内核启动脚本（v3专用）
 # ============================================
-mkdir -p /home/jovyan/.ipython/profile_default/startup/
+# mkdir -p /home/jovyan/.ipython/profile_default/startup/
 
-cat > /home/jovyan/.ipython/profile_default/startup/00_ai_env.py << 'EOF'
-"""Jupyter AI v3 内核环境初始化"""
-import os
-from pathlib import Path
-
-print("🤖 Jupyter AI v3 环境初始化...")
-
+# cat > /home/jovyan/.ipython/profile_default/startup/00_ai_env.py << 'EOF'
+# """Jupyter AI v3 内核环境初始化"""
+# import os
 # 设置环境变量
-os.environ.setdefault('LITELLM_CONFIG_PATH', '/home/jovyan/.jupyter/litellm/config.yaml')
-os.environ.setdefault('LITELLM_LOCAL_MODEL_COST_MAP', 'True')
-os.environ.setdefault('OLLAMA_HOST', 'http://192.168.112.136:11434')
-os.environ.setdefault('OLLAMA_BASE_URL', 'http://192.168.112.136:11434')
-
-# 设置深度学习框架环境变量
-os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '2')  # 减少TensorFlow日志
-os.environ.setdefault('PYTORCH_CUDA_ALLOC_CONF', 'max_split_size_mb:512')
-
-config_path = os.environ.get('LITELLM_CONFIG_PATH', '')
-if Path(config_path).exists():
-    print(f"   ✅ LiteLLM 配置: {config_path}")
-else:
-    print(f"   ⚠️  LiteLLM 配置不存在: {config_path}")
-
-print(f"   ✅ Ollama: {os.environ.get('OLLAMA_HOST')}")
-print(f"   ✅ PyTorch 和 TensorFlow 已配置")
-print("🎉 Jupyter AI v3 就绪！")
-
-# 导入常用库以加速首次使用
-try:
-    import numpy as np
-    import pandas as pd
-    print("   ✅ NumPy, Pandas 已预加载")
-except:
-    pass
-EOF
+# os.environ.setdefault('LITELLM_CONFIG_PATH', '/home/jovyan/.jupyter/litellm/config.yaml')
+# os.environ.setdefault('LITELLM_LOCAL_MODEL_COST_MAP', 'True')
+# os.environ.setdefault('OLLAMA_HOST', 'http://192.168.112.136:11434')
+# os.environ.setdefault('OLLAMA_BASE_URL', 'http://192.168.112.136:11434')
+# os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '2')  
+# os.environ.setdefault('PYTORCH_CUDA_ALLOC_CONF', 'max_split_size_mb:512')
+# EOF
 
 # ============================================
 # 18. 创建 .env 文件
