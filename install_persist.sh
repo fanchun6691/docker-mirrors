@@ -62,10 +62,6 @@ echo "📦 安装 Jupyter AI v3.0..."
 
 # 清理缓存并安装
 pip cache purge
-# 关键：先单独安装 jupyter-ai-litellm，确保不以可编辑模式安装
-pip uninstall jupyter-ai-litellm -y 2>/dev/null || true
-pip install --no-cache-dir --force-reinstall --no-deps jupyter-ai-litellm
-
 pip install --no-cache-dir --force-reinstall \
   "jupyter-ai>=3.0.0" \
   "jupyter-ai-magic-commands" \
@@ -76,9 +72,6 @@ pip install --no-cache-dir --force-reinstall \
   "jupyter_server_mcp" \
     ipykernel \
     ipywidgets
-
-# 最后安装 litellm 的依赖（避免冲突）
-pip install --no-cache-dir litellm
 
 echo "📋 验证服务器扩展:"
 jupyter server extension list | grep jupyter_ai
