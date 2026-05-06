@@ -310,6 +310,15 @@ EOF
 
 echo "✅ LiteLLM 配置完成"
 
+# 在 IPython 启动时自动执行
+cat > /home/jovyan/.ipython/profile_default/startup/01_load_ai_magics.py << EOF
+try:
+    %load_ext jupyter_ai_magic_commands
+    print("✅ 已自动加载 AI 魔法命令：%ai、%%ai")
+except Exception as e:
+    print(f"⚠️ 加载魔法命令失败：{e}")
+EOF
+
 # ============================================
 # 15. 创建 kernel 配置（v3使用Python 3.11）
 # ============================================
@@ -407,7 +416,10 @@ c.LabApp.extensions_in_dev_mode = False
 
 # 启用 Jupyter AI 扩展
 c.ServerApp.jpserver_extensions = {
-    "jupyter_ai": True
+    "jupyter_ai_litellm": True,      # LiteLLM 集成
+    "jupyter_ai_magic_commands": True, # 魔法命令
+    "jupyter_ai_jupyternaut": True,   # AI 助手
+    "jupyter_ai_tools": True          # 工具集
 }
 
 print(f"✅ Jupyter AI v3 配置加载完成")
