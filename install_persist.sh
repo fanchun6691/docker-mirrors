@@ -63,7 +63,7 @@ echo "📦 安装 Jupyter AI v3.0..."
 # 【关键】强制清理可能存在的旧版本
 # ============================================
 echo "🧹 强制清理可能存在的旧版本..."
-pip uninstall jupyter-ai-litellm -y 2>/dev/null || true
+pip uninstall jupyter-ai-litellm -y 2>/dev/null
 rm -rf /opt/conda/envs/ai_env/lib/python3.11/site-packages/jupyter_ai_litellm*
 pip cache purge
 
@@ -76,6 +76,19 @@ pip install --no-cache-dir --force-reinstall \
   "jupyter_server_mcp" \
     ipykernel \
     ipywidgets
+
+# 修复 jupyter-ai-litellm 的版本显示 bug
+SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
+PACKAGE_DIR="${SITE_PACKAGES}/jupyter_ai_litellm"
+
+if [ -d "$PACKAGE_DIR" ]; then
+    echo "🔧 修复 jupyter-ai-litellm 版本显示..."
+    # 创建 _version.py
+    echo '__version__ = "0.0.2"' > ${PACKAGE_DIR}/_version.py
+    # 删除硬编码的 version = "dev"
+    sed -i '/version = "dev"/d' ${PACKAGE_DIR}/__init__.py
+    echo "✅ 修复完成"
+fi
 
 echo "📋 验证服务器扩展:"
 jupyter server extension list | grep jupyter_ai
