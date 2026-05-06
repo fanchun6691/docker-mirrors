@@ -435,7 +435,6 @@ c.LabApp.extensions_in_dev_mode = False
 # 启用 Jupyter AI 扩展
 c.ServerApp.jpserver_extensions = {
     "jupyter_ai_litellm": True,      # LiteLLM 集成
-    "jupyter_ai_magic_commands": True, # 魔法命令
     "jupyter_ai_jupyternaut": True,   # AI 助手
     "jupyter_ai_tools": True          # 工具集
 }
