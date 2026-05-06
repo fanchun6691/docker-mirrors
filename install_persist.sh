@@ -247,6 +247,37 @@ echo "✅ Jupyter AI v3.0 安装完成！"
 echo "=========================================="
 
 # ============================================
+# 【新增】预配置 Chat UI 的 config.json
+# ============================================
+echo "🔧 预配置 Jupyter AI Chat UI..."
+
+JUPYTER_AI_CONFIG_DIR="/home/jovyan/.local/share/jupyter/jupyter_ai"
+mkdir -p ${JUPYTER_AI_CONFIG_DIR}
+
+# 写入 Chat UI 配置文件
+cat > ${JUPYTER_AI_CONFIG_DIR}/config.json << EOF
+{
+    "model_provider_id": "ollama",
+    "embeddings_provider_id": null,
+    "completions_model_provider_id": null,
+    "api_keys": {
+        "ollama": "none"
+    },
+    "send_with_shift_enter": false,
+    "fields": {
+        "model_name": "${OLLAMA_DEFAULT_MODEL}",
+        "api_base": "${OLLAMA_EXTERNAL_URL}",
+        "temperature": 0.7,
+        "max_tokens": 2048
+    },
+    "embeddings_fields": {},
+    "completions_fields": {}
+}
+EOF
+
+echo "✅ Chat UI 配置已写入: ${JUPYTER_AI_CONFIG_DIR}/config.json"
+
+# ============================================
 # 14. 配置 LiteLLM 模型列表
 # ============================================
 echo "⚙️ 配置 LiteLLM 模型..."
