@@ -71,6 +71,8 @@ pip install --no-cache-dir --force-reinstall \
   "jupyter-ai-magic-commands" \
   "jupyter-ai-jupyternaut" \
   "jupyter-ai-tools" \
+  "jupyter-ai-litellm == 0.0.2" \
+  "litellm ==1.83.14 " \
   "jupyter_server_mcp" \
     ipykernel \
     ipywidgets
