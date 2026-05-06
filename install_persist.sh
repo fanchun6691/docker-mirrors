@@ -59,16 +59,20 @@ echo "✅ JupyterLab 版本: ${JLAB_VERSION}"
 # 3. 安装 Jupyter AI v3.0 核心包（关键修复）
 # ============================================
 echo "📦 安装 Jupyter AI v3.0..."
-
-# 清理缓存并安装
+# ============================================
+# 【关键】强制清理可能存在的旧版本
+# ============================================
+echo "🧹 强制清理可能存在的旧版本..."
+pip uninstall jupyter-ai-litellm -y 2>/dev/null || true
+rm -rf /opt/conda/envs/ai_env/lib/python3.11/site-packages/jupyter_ai_litellm*
 pip cache purge
+
 pip install --no-cache-dir --force-reinstall \
   "jupyter-ai>=3.0.0" \
   "jupyter-ai-magic-commands" \
   "jupyter-ai-jupyternaut" \
   "jupyter-ai-tools" \
   "jupyter-ai-litellm == 0.0.2" \
-  "litellm" \
   "jupyter_server_mcp" \
     ipykernel \
     ipywidgets
