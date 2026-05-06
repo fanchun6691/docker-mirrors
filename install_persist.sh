@@ -254,7 +254,7 @@ echo "🔧 预配置 Jupyter AI Chat UI..."
 JUPYTER_AI_CONFIG_DIR="/home/jovyan/.local/share/jupyter/jupyter_ai"
 mkdir -p ${JUPYTER_AI_CONFIG_DIR}
 
-# 写入 Chat UI 配置文件
+# 写入 Chat UI 配置文件（正确格式）
 cat > ${JUPYTER_AI_CONFIG_DIR}/config.json << EOF
 {
     "model_provider_id": "ollama",
@@ -265,10 +265,18 @@ cat > ${JUPYTER_AI_CONFIG_DIR}/config.json << EOF
     },
     "send_with_shift_enter": false,
     "fields": {
-        "model_name": "${OLLAMA_DEFAULT_MODEL}",
-        "api_base": "${OLLAMA_EXTERNAL_URL}",
-        "temperature": 0.7,
-        "max_tokens": 2048
+        "model_name": {
+            "value": "${OLLAMA_DEFAULT_MODEL}"
+        },
+        "api_base": {
+            "value": "${OLLAMA_EXTERNAL_URL}"
+        },
+        "temperature": {
+            "value": 0.7
+        },
+        "max_tokens": {
+            "value": 2048
+        }
     },
     "embeddings_fields": {},
     "completions_fields": {}
@@ -312,11 +320,19 @@ echo "✅ LiteLLM 配置完成"
 
 # ✅ 先创建目录（这一行不能少！）
 mkdir -p /home/jovyan/.ipython/profile_default/startup/
+
 # 在 IPython 启动时自动执行
-cat > /home/jovyan/.ipython/profile_default/startup/01_load_ai_magics.py << EOF
+cat > /home/jovyan/.ipython/profile_default/startup/01_load_ai_magics.py << 'EOF'
+import os
+
+# 设置 Ollama 环境变量
+os.environ["OLLAMA_HOST"] = "http://192.168.112.136:11434"
+
+# 加载 AI 魔法命令
 try:
     %load_ext jupyter_ai_magic_commands
     print("✅ 已自动加载 AI 魔法命令：%ai、%%ai")
+    print(f"✅ Ollama 已配置: {os.environ.get('OLLAMA_HOST')}")
 except Exception as e:
     print(f"⚠️ 加载魔法命令失败：{e}")
 EOF
