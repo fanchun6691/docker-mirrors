@@ -310,6 +310,8 @@ EOF
 
 echo "✅ LiteLLM 配置完成"
 
+# ✅ 先创建目录（这一行不能少！）
+mkdir -p /home/jovyan/.ipython/profile_default/startup/
 # 在 IPython 启动时自动执行
 cat > /home/jovyan/.ipython/profile_default/startup/01_load_ai_magics.py << EOF
 try:
