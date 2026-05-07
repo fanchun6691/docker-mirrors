@@ -278,7 +278,14 @@ cat > ${JUPYTER_AI_CONFIG_DIR}/config.json << EOF
             "value": 2048
         }
     },
-    "embeddings_fields": {},
+    "embeddings_fields": {
+        "model_name": {
+            "value": "nomic-embed-text"
+        },
+        "api_base": {
+            "value": "${OLLAMA_EXTERNAL_URL}"
+        }
+    },
     "completions_fields": {}
 }
 EOF
@@ -290,31 +297,36 @@ echo "✅ Chat UI 配置已写入: ${JUPYTER_AI_CONFIG_DIR}/config.json"
 # ============================================
 echo "⚙️ 配置 LiteLLM 模型..."
 mkdir -p /home/jovyan/.jupyter/litellm
-
-cat > /home/jovyan/.jupyter/litellm/config.yaml << 'EOF'
+cat > /home/jovyan/.jupyter/litellm/config.yaml.template << 'EOF'
 model_list:
-  - model_name: qwen2.5-coder:7b-q4
+  - model_name: qwen2.5-coder
     litellm_params:
       model: ollama/qwen2.5-coder:7b-q4
-      api_base: http://192.168.112.136:11434
+      api_base: ${OLLAMA_HOST}
       api_key: none
-      temperature: 0.7
-      max_tokens: 2048
-  - model_name: deepseek-coder:6.7b
+      temperature: ${OLLAMA_TEMPERATURE}
+      max_tokens: ${OLLAMA_MAX_TOKENS}
+  - model_name: deepseek-coder
     litellm_params:
       model: ollama/deepseek-coder:6.7b
-      api_base: http://192.168.112.136:11434
+      api_base: ${OLLAMA_HOST}
       api_key: none
-      temperature: 0.7
-      max_tokens: 2048
+      temperature: ${OLLAMA_TEMPERATURE}
+      max_tokens: ${OLLAMA_MAX_TOKENS}
+  # 嵌入模型（向量化） ←======== 新加
+  - model_name: nomic-embed-text
+    litellm_params:
+      model: ollama/nomic-embed-text
+      api_base: ${OLLAMA_HOST}
+      api_key: none
 
 litellm_settings:
-  drop_params: True
-  set_verbose: False
-
-general_settings:
-  master_key: sk-1234
+  drop_params: true
+  set_verbose: false
 EOF
+
+# 使用 envsubst 替换变量
+envsubst < /home/jovyan/.jupyter/litellm/config.yaml.template > /home/jovyan/.jupyter/litellm/config.yaml
 
 echo "✅ LiteLLM 配置完成"
 
@@ -344,7 +356,7 @@ mkdir -p ${KERNEL_DIR}
 cat > ${KERNEL_DIR}/kernel.json << EOF
 {
  "argv": [
-  "/opt/conda/envs/${CONDA_ENV_NAME}/bin/python",
+  "/opt/conda/envs/ai_env/bin/python",
   "-m",
   "ipykernel_launcher",
   "-f",
@@ -352,18 +364,14 @@ cat > ${KERNEL_DIR}/kernel.json << EOF
  ],
  "display_name": "Python 3.11 (AI v3)",
  "language": "python",
- "metadata": {
-  "debugger": true
- },
+ "metadata": {"debugger": true},
  "env": {
-  "JUPYTER_PORT": "\${JUPYTER_PORT:-8881}",
-  "OLLAMA_HOST": "${OLLAMA_EXTERNAL_URL}",
-  "OLLAMA_BASE_URL": "${OLLAMA_EXTERNAL_URL}",
+  "OLLAMA_HOST": "${OLLAMA_HOST}",
   "OLLAMA_DEFAULT_MODEL": "${OLLAMA_DEFAULT_MODEL}",
-  "OLLAMA_TEMPERATURE": "${OLLAMA_TEMPERATURE:-0.7}",
-  "MAX_TOKENS": "${MAX_TOKENS:-2048}",
-  "HF_ENDPOINT": "${HF_ENDPOINT:-https://hf-mirror.com}",
-  "LITELLM_CONFIG_PATH": "/home/jovyan/.jupyter/litellm/config.yaml",
+  "OLLAMA_EMBEDDING_MODEL": "${OLLAMA_EMBEDDING_MODEL}",
+  "OLLAMA_TEMPERATURE": "${OLLAMA_TEMPERATURE}",
+  "MAX_TOKENS": "${OLLAMA_MAX_TOKENS}",
+  "LITELLM_CONFIG_PATH": "${LITELLM_CONFIG_PATH}",
   "LITELLM_LOCAL_MODEL_COST_MAP": "True"
  }
 }
@@ -443,40 +451,44 @@ print(f"   Ollama: {OLLAMA_HOST}")
 print(f"   LiteLLM config: {os.environ.get('LITELLM_CONFIG_PATH')}")
 EOF
 
-#创建或修改 Jupyter AI 配置文件
-mkdir -p /home/jovyan/.jupyter
-cat > /home/jovyan/.jupyter/jupyter_ai_config.json << 'EOF'
+# 删除旧版遗留配置（彻底清理）
+rm -f /home/jovyan/.jupyter/jupyter_ai_config.json
+
+# Jupyter AI v3 统一配置（与 Chat UI、LiteLLM 对齐）
+mkdir -p /home/jovyan/.local/share/jupyter/jupyter_ai
+cat > /home/jovyan/.local/share/jupyter/jupyter_ai/config.json << EOF
 {
-  "AiExtension": {
-    "lang_chain_models": {
-      "providers": {
-        "ollama": {
-          "models": [
-            {
-              "id": "qwen2.5-coder:7b-q4",
-              "name": "Qwen 2.5 Coder 7B",
-              "params": {
-                "base_url": "http://192.168.112.136:11434",
-                "temperature": 0.7,
-                "num_predict": 2048
-              }
-            },
-            {
-              "id": "deepseek-coder:6.7b",
-              "name": "DeepSeek Coder 6.7B",
-              "params": {
-                "base_url": "http://192.168.112.136:11434",
-                "temperature": 0.7,
-                "num_predict": 2048
-              }
-            }
-          ]
-        }
-      }
+    "model_provider_id": "litellm",
+    "embeddings_provider_id": "litellm",
+    "completions_model_provider_id": null,
+    "api_keys": {
+        "ollama": "none",
+        "litellm": "none"
     },
-    "model_provider_id": "ollama",
-    "model_id": "qwen2.5-coder:7b-q4"
-  }
+    "send_with_shift_enter": false,
+    "fields": {
+        "model_name": {
+            "value": "qwen2.5-coder"
+        },
+        "api_base": {
+            "value": "http://192.168.112.136:11434"
+        },
+        "temperature": {
+            "value": 0.7
+        },
+        "max_tokens": {
+            "value": 2048
+        }
+    },
+    "embeddings_fields": {
+        "model_name": {
+            "value": "nomic-embed-text"
+        },
+        "api_base": {
+            "value": "http://192.168.112.136:11434"
+        }
+    },
+    "completions_fields": {}
 }
 EOF
 
@@ -501,22 +513,20 @@ EOF
 # 18. 创建 .env 文件
 # ============================================
 cat > /home/jovyan/.env.final << EOF
-# Jupyter AI v3.0 配置
+# ==========================
+# 【唯一配置中心】只维护这里
+# ==========================
+OLLAMA_HOST=http://192.168.112.136:11434
+OLLAMA_DEFAULT_MODEL=qwen2.5-coder
+OLLAMA_TEMPERATURE=0.7
+OLLAMA_MAX_TOKENS=2048
+# 嵌入模型（向量化）
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+
 LITELLM_CONFIG_PATH=/home/jovyan/.jupyter/litellm/config.yaml
 LITELLM_LOCAL_MODEL_COST_MAP=True
 
-# Ollama 配置
-OLLAMA_HOST=${OLLAMA_EXTERNAL_URL}
-OLLAMA_BASE_URL=${OLLAMA_EXTERNAL_URL}
-OLLAMA_DEFAULT_MODEL=${OLLAMA_DEFAULT_MODEL}
-OLLAMA_TEMPERATURE=0.7
-OLLAMA_TOP_P=0.9
-MAX_TOKENS=2048
-
-# Hugging Face 镜像
 HF_ENDPOINT=https://hf-mirror.com
-
-# 深度学习框架配置
 TF_CPP_MIN_LOG_LEVEL=2
 PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 EOF
