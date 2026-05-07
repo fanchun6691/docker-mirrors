@@ -297,27 +297,34 @@ echo "✅ Chat UI 配置已写入: ${JUPYTER_AI_CONFIG_DIR}/config.json"
 # ============================================
 echo "⚙️ 配置 LiteLLM 模型..."
 mkdir -p /home/jovyan/.jupyter/litellm
+
+# 设置默认值（如果未定义）
+OLLAMA_HOST="${OLLAMA_HOST:-http://192.168.112.136:11434}"
+OLLAMA_TEMPERATURE="${OLLAMA_TEMPERATURE:-0.7}"
+OLLAMA_MAX_TOKENS="${OLLAMA_MAX_TOKENS:-2048}"
+
+# 创建模板文件（使用占位符）
 cat > /home/jovyan/.jupyter/litellm/config.yaml.template << 'EOF'
 model_list:
   - model_name: qwen2.5-coder
     litellm_params:
       model: ollama/qwen2.5-coder:7b-q4
-      api_base: ${OLLAMA_HOST}
+      api_base: __OLLAMA_HOST__
       api_key: none
-      temperature: ${OLLAMA_TEMPERATURE}
-      max_tokens: ${OLLAMA_MAX_TOKENS}
+      temperature: __OLLAMA_TEMPERATURE__
+      max_tokens: __OLLAMA_MAX_TOKENS__
   - model_name: deepseek-coder
     litellm_params:
       model: ollama/deepseek-coder:6.7b
-      api_base: ${OLLAMA_HOST}
+      api_base: __OLLAMA_HOST__
       api_key: none
-      temperature: ${OLLAMA_TEMPERATURE}
-      max_tokens: ${OLLAMA_MAX_TOKENS}
-  # 嵌入模型（向量化） ←======== 新加
+      temperature: __OLLAMA_TEMPERATURE__
+      max_tokens: __OLLAMA_MAX_TOKENS__
+  # 嵌入模型（向量化）
   - model_name: nomic-embed-text
     litellm_params:
       model: ollama/nomic-embed-text
-      api_base: ${OLLAMA_HOST}
+      api_base: __OLLAMA_HOST__
       api_key: none
 
 litellm_settings:
@@ -325,8 +332,16 @@ litellm_settings:
   set_verbose: false
 EOF
 
-# 使用 envsubst 替换变量
-envsubst < /home/jovyan/.jupyter/litellm/config.yaml.template > /home/jovyan/.jupyter/litellm/config.yaml
+# 使用 sed 替换占位符
+sed -e "s|__OLLAMA_HOST__|${OLLAMA_HOST}|g" \
+    -e "s|__OLLAMA_TEMPERATURE__|${OLLAMA_TEMPERATURE}|g" \
+    -e "s|__OLLAMA_MAX_TOKENS__|${OLLAMA_MAX_TOKENS}|g" \
+    /home/jovyan/.jupyter/litellm/config.yaml.template > /home/jovyan/.jupyter/litellm/config.yaml
+
+# 删除模板文件（可选）
+rm -f /home/jovyan/.jupyter/litellm/config.yaml.template
+
+echo "✅ LiteLLM 配置完成"
 
 echo "✅ LiteLLM 配置完成"
 
