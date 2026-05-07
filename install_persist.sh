@@ -266,7 +266,7 @@ cat > ${JUPYTER_AI_CONFIG_DIR}/config.json << EOF
     "send_with_shift_enter": false,
     "fields": {
         "model_name": {
-            "value": "${OLLAMA_DEFAULT_MODEL}"
+            "value": "ollama/${OLLAMA_DEFAULT_MODEL}"
         },
         "api_base": {
             "value": "${OLLAMA_EXTERNAL_URL}"
@@ -280,7 +280,7 @@ cat > ${JUPYTER_AI_CONFIG_DIR}/config.json << EOF
     },
     "embeddings_fields": {
         "model_name": {
-            "value": "nomic-embed-text"
+            "value": "ollama/nomic-embed-text"
         },
         "api_base": {
             "value": "${OLLAMA_EXTERNAL_URL}"
@@ -306,14 +306,14 @@ OLLAMA_MAX_TOKENS="${OLLAMA_MAX_TOKENS:-2048}"
 # 创建模板文件（使用占位符）
 cat > /home/jovyan/.jupyter/litellm/config.yaml.template << 'EOF'
 model_list:
-  - model_name: qwen2.5-coder
+  - model_name: ollama/qwen2.5-coder:7b-q4
     litellm_params:
       model: ollama/qwen2.5-coder:7b-q4
       api_base: __OLLAMA_HOST__
       api_key: none
       temperature: __OLLAMA_TEMPERATURE__
       max_tokens: __OLLAMA_MAX_TOKENS__
-  - model_name: deepseek-coder
+  - model_name: ollama/deepseek-coder:6.7b
     litellm_params:
       model: ollama/deepseek-coder:6.7b
       api_base: __OLLAMA_HOST__
@@ -321,7 +321,7 @@ model_list:
       temperature: __OLLAMA_TEMPERATURE__
       max_tokens: __OLLAMA_MAX_TOKENS__
   # 嵌入模型（向量化）
-  - model_name: nomic-embed-text
+  - model_name: ollama/nomic-embed-text
     litellm_params:
       model: ollama/nomic-embed-text
       api_base: __OLLAMA_HOST__
