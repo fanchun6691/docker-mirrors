@@ -471,14 +471,13 @@ rm -f /home/jovyan/.jupyter/jupyter_ai_config.json
 
 # Jupyter AI v3 统一配置（与 Chat UI、LiteLLM 对齐）
 mkdir -p /home/jovyan/.local/share/jupyter/jupyter_ai
-cat > /home/jovyan/.local/share/jupyter/jupyter_ai/config.json << EOF
+cat > /home/jovyan/.local/share/jupyter/jupyter_ai/config.json << 'EOF'
 {
-    "model_provider_id": "litellm",
-    "embeddings_provider_id": "litellm",
+    "model_provider_id": "ollama",
+    "embeddings_provider_id": "ollama",
     "completions_model_provider_id": null,
     "api_keys": {
-        "ollama": "none",
-        "litellm": "none"
+        "ollama": "none"
     },
     "send_with_shift_enter": false,
     "fields": {
