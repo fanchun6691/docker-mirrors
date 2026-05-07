@@ -258,7 +258,7 @@ mkdir -p ${JUPYTER_AI_CONFIG_DIR}
 cat > ${JUPYTER_AI_CONFIG_DIR}/config.json << EOF
 {
     "model_provider_id": "ollama",
-    "embeddings_provider_id": null,
+    "embeddings_provider_id": "ollama",
     "completions_model_provider_id": null,
     "api_keys": {
         "ollama": "none"
