@@ -346,22 +346,26 @@ echo "✅ LiteLLM 配置完成"
 
 echo "✅ LiteLLM 配置完成"
 
-# ✅ 先创建目录（这一行不能少！）
+# 创建 IPython 启动目录
 mkdir -p /home/jovyan/.ipython/profile_default/startup/
 
-# 在 IPython 启动时自动执行
+# 写入自动加载脚本
 cat > /home/jovyan/.ipython/profile_default/startup/01_load_ai_magics.py << 'EOF'
 import os
 
-# 确保环境变量已设置
-if not os.environ.get('OLLAMA_HOST'):
-    os.environ["OLLAMA_HOST"] = "http://192.168.112.136:11434"
-# 只加载魔法命令，不打印任何内容
+# 设置环境变量（确保内核启动时已设置）
+os.environ["OLLAMA_HOST"] = "http://192.168.112.136:11434"
+os.environ["LITELLM_CONFIG_PATH"] = "/home/jovyan/.jupyter/litellm/config.yaml"
+
+# 加载 AI 魔法命令
 try:
     get_ipython().run_line_magic('load_ext', 'jupyter_ai_magic_commands')
-except Exception:
-    pass  # 静默失败，不影响内核启动
+    print("✅ AI 魔法命令已自动加载")
+except Exception as e:
+    print(f"⚠️ 加载失败: {e}")
 EOF
+
+echo "✅ 内核自动加载配置完成"
 
 # ============================================
 # 15. 创建 kernel 配置（v3使用Python 3.11）
@@ -483,24 +487,24 @@ cat > /home/jovyan/.local/share/jupyter/jupyter_ai/config.json << 'EOF'
     "send_with_shift_enter": false,
     "fields": {
         "model_name": {
-            "value": "qwen2.5-coder"
+            "value": "ollama/${OLLAMA_DEFAULT_MODEL}"
         },
         "api_base": {
-            "value": "http://192.168.112.136:11434"
+            "value": "${OLLAMA_EXTERNAL_URL}"
         },
         "temperature": {
-            "value": 0.7
+            "value": ${OLLAMA_TEMPERATURE:-0.7}
         },
         "max_tokens": {
-            "value": 2048
+            "value": ${OLLAMA_MAX_TOKENS:-2048}
         }
     },
     "embeddings_fields": {
         "model_name": {
-            "value": "nomic-embed-text"
+            "value": "${ollama/OLLAMA_EMBEDDING_MODEL}"
         },
         "api_base": {
-            "value": "http://192.168.112.136:11434"
+            "value": "${OLLAMA_EXTERNAL_URL}"
         }
     },
     "completions_fields": {}
