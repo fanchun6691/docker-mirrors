@@ -475,41 +475,45 @@ EOF
 rm -f /home/jovyan/.jupyter/jupyter_ai_config.json
 
 # Jupyter AI v3 统一配置（与 Chat UI、LiteLLM 对齐）
+# 预配置 Chat UI（使用环境变量）
+# ============================================
+echo "🔧 预配置 Jupyter AI Chat UI..."
+
 mkdir -p /home/jovyan/.local/share/jupyter/jupyter_ai
-cat > /home/jovyan/.local/share/jupyter/jupyter_ai/config.json << 'EOF'
+
+cat > /home/jovyan/.local/share/jupyter/jupyter_ai/config.json.template << 'EOF'
 {
     "model_provider_id": "ollama",
     "embeddings_provider_id": "ollama",
     "completions_model_provider_id": null,
-    "api_keys": {
-        "ollama": "none"
-    },
+    "api_keys": {"ollama": "none"},
     "send_with_shift_enter": false,
     "fields": {
-        "model_name": {
-            "value": "ollama/${OLLAMA_DEFAULT_MODEL}"
-        },
-        "api_base": {
-            "value": "${OLLAMA_EXTERNAL_URL}"
-        },
-        "temperature": {
-            "value": ${OLLAMA_TEMPERATURE:-0.7}
-        },
-        "max_tokens": {
-            "value": ${OLLAMA_MAX_TOKENS:-2048}
-        }
+        "model_name": {"value": "ollama/__OLLAMA_DEFAULT_MODEL__"},
+        "api_base": {"value": "__OLLAMA_BASE_URL__"},
+        "temperature": {"value": __OLLAMA_TEMPERATURE__},
+        "max_tokens": {"value": __MAX_TOKENS__}
     },
     "embeddings_fields": {
-        "model_name": {
-            "value": "${ollama/OLLAMA_EMBEDDING_MODEL}"
-        },
-        "api_base": {
-            "value": "${OLLAMA_EXTERNAL_URL}"
-        }
+        "model_name": {"value": "ollama/__OLLAMA_EMBEDDING_MODEL__"},
+        "api_base": {"value": "__OLLAMA_BASE_URL__"}
     },
     "completions_fields": {}
 }
 EOF
+
+sed -e "s|__OLLAMA_DEFAULT_MODEL__|${OLLAMA_DEFAULT_MODEL}|g" \
+    -e "s|__OLLAMA_BASE_URL__|${OLLAMA_BASE_URL}|g" \
+    -e "s|__OLLAMA_TEMPERATURE__|${OLLAMA_TEMPERATURE}|g" \
+    -e "s|__MAX_TOKENS__|${MAX_TOKENS}|g" \
+    -e "s|__OLLAMA_EMBEDDING_MODEL__|${OLLAMA_EMBEDDING_MODEL}|g" \
+    /home/jovyan/.local/share/jupyter/jupyter_ai/config.json.template > /home/jovyan/.local/share/jupyter/jupyter_ai/config.json
+
+rm -f /home/jovyan/.local/share/jupyter/jupyter_ai/config.json.template
+
+echo "✅ Chat UI 配置已写入"
+
+echo "✅ Chat UI 配置已生成"
 
 # ============================================
 # 17. 创建内核启动脚本（v3专用）
