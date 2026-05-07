@@ -329,7 +329,8 @@ model_list:
 
 litellm_settings:
   drop_params: true
-  set_verbose: false
+  #set_verbose: false
+  set_verbose: true
 EOF
 
 # 使用 sed 替换占位符
