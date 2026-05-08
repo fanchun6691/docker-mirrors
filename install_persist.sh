@@ -75,7 +75,8 @@ pip install --no-cache-dir --force-reinstall \
   "jupyter-ai-litellm == 0.0.2" \
   "jupyter_server_mcp" \
     ipykernel \
-    ipywidgets
+    ipywidgets \
+    jupyterlab-language-pack-zh-CN
 
 # 修复 jupyter-ai-litellm 的版本显示 bug
 SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
@@ -352,20 +353,43 @@ mkdir -p /home/jovyan/.ipython/profile_default/startup/
 # 写入自动加载脚本
 cat > /home/jovyan/.ipython/profile_default/startup/01_load_ai_magics.py << 'EOF'
 import os
+import litellm
 
-# 设置环境变量（确保内核启动时已设置）
-os.environ["OLLAMA_HOST"] = "http://192.168.112.136:11434"
-os.environ["LITELLM_CONFIG_PATH"] = "/home/jovyan/.jupyter/litellm/config.yaml"
+# 从环境变量获取配置
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://192.168.112.136:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_DEFAULT_MODEL", "qwen2.5-coder:7b-q4")
 
-# 加载 AI 魔法命令
-try:
-    get_ipython().run_line_magic('load_ext', 'jupyter_ai_magic_commands')
-    print("✅ AI 魔法命令已自动加载")
-except Exception as e:
-    print(f"⚠️ 加载失败: {e}")
+# 强制写入环境变量
+os.environ["OLLAMA_HOST"] = OLLAMA_HOST
+os.environ["OLLAMA_BASE_URL"] = OLLAMA_HOST
+
+# 模型全称
+full_model = f"ollama/{OLLAMA_MODEL}"
+
+# 注册模型
+new_model = {
+    "model_name": full_model,
+    "litellm_params": {
+        "model": full_model,
+        "api_base": OLLAMA_HOST,
+        "api_key": "none",
+        "temperature": 0.7,
+        "max_tokens": 2048
+    }
+}
+
+# 安全追加
+if not hasattr(litellm, "model_list"):
+    litellm.model_list = []
+
+model_names = [m["model_name"] for m in litellm.model_list]
+if new_model["model_name"] not in model_names:
+    litellm.model_list.append(new_model)
+
+echo "已加载模型: ollama/qwen2.5-coder:7b-q4"
 EOF
 
-echo "✅ 内核自动加载配置完成"
+echo " 内核自动加载配置完成"
 
 # ============================================
 # 15. 创建 kernel 配置（v3使用Python 3.11）
@@ -445,30 +469,21 @@ c.ServerApp.disable_check_xsrf = True
 # 认证配置（优先使用 token，如果没有则允许无密码）
 if JUPYTER_TOKEN:
     c.IdentityProvider.token = JUPYTER_TOKEN
-    print(f"✅ 使用 Token 认证")
+
 elif JUPYTER_PASSWORD:
     from jupyter_server.auth import passwd
     c.IdentityProvider.hashed_password = passwd(JUPYTER_PASSWORD)
-    print(f"✅ 使用密码认证")
 else:
     c.IdentityProvider.token = ''
     c.IdentityProvider.password = ''
-    print(f"⚠️  无认证模式（仅限开发环境）")
-
 c.ContentsManager.allow_hidden = True
 c.LabApp.extensions_in_dev_mode = False
-
 # 启用 Jupyter AI 扩展
 c.ServerApp.jpserver_extensions = {
     "jupyter_ai_litellm": True,      # LiteLLM 集成
     "jupyter_ai_jupyternaut": True,   # AI 助手
     "jupyter_ai_tools": True          # 工具集
 }
-
-print(f"✅ Jupyter AI v3 配置加载完成")
-print(f"   Port: {JUPYTER_PORT}")
-print(f"   Ollama: {OLLAMA_HOST}")
-print(f"   LiteLLM config: {os.environ.get('LITELLM_CONFIG_PATH')}")
 EOF
 
 # 删除旧版遗留配置（彻底清理）
@@ -514,23 +529,6 @@ rm -f /home/jovyan/.local/share/jupyter/jupyter_ai/config.json.template
 echo "✅ Chat UI 配置已写入"
 
 echo "✅ Chat UI 配置已生成"
-
-# ============================================
-# 17. 创建内核启动脚本（v3专用）
-# ============================================
-# mkdir -p /home/jovyan/.ipython/profile_default/startup/
-
-# cat > /home/jovyan/.ipython/profile_default/startup/00_ai_env.py << 'EOF'
-# """Jupyter AI v3 内核环境初始化"""
-# import os
-# 设置环境变量
-# os.environ.setdefault('LITELLM_CONFIG_PATH', '/home/jovyan/.jupyter/litellm/config.yaml')
-# os.environ.setdefault('LITELLM_LOCAL_MODEL_COST_MAP', 'True')
-# os.environ.setdefault('OLLAMA_HOST', 'http://192.168.112.136:11434')
-# os.environ.setdefault('OLLAMA_BASE_URL', 'http://192.168.112.136:11434')
-# os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '2')  
-# os.environ.setdefault('PYTORCH_CUDA_ALLOC_CONF', 'max_split_size_mb:512')
-# EOF
 
 # ============================================
 # 18. 创建 .env 文件
@@ -683,13 +681,6 @@ echo "  print(f'PyTorch: {torch.__version__}')"
 echo "  print(f'TensorFlow: {tf.__version__}')"
 echo ""
 echo "=========================================="
-
-
-
-
-
-
-
 
 # ============================================
 # 23. 创建完整使用手册
