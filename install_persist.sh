@@ -465,6 +465,8 @@ c.ServerApp.allow_remote_access = True
 c.ServerApp.root_dir = '/home/jovyan'
 c.ServerApp.trust_xheaders = True
 c.ServerApp.disable_check_xsrf = True
+# 设置日志级别为 DEBUG
+c.ServerApp.log_level = 'DEBUG'
 
 # 认证配置（优先使用 token，如果没有则允许无密码）
 if JUPYTER_TOKEN:
