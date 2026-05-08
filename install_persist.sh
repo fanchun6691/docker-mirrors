@@ -76,7 +76,8 @@ pip install --no-cache-dir --force-reinstall \
   "jupyter_server_mcp" \
     ipykernel \
     ipywidgets \
-    jupyterlab-language-pack-zh-CN
+    jupyterlab-language-pack-zh-CN \
+    litellm 
 
 # 修复 jupyter-ai-litellm 的版本显示 bug
 SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
@@ -148,24 +149,25 @@ pip install \
     xgboost
 
 # ============================================
-# 7. 深度学习框架
+# 7. 深度学习框架 (2026 最新版)
 # ============================================
-echo "🔥 安装深度学习框架..."
+echo "🔥 安装深度学习框架 (2026 Optimized)..."
 
-pip install --force-reinstall protobuf
+# 1. 强制升级 protobuf (解决潜在的依赖冲突)
+pip install --upgrade protobuf
 
-echo "  安装 PyTorch..."
+# 2. 安装 PyTorch (使用官方 CUDA 12.4 或 CPU)
+# 根据你的机器环境选择，如果是 CPU 版本，保留 cpu；如果是 GPU，替换为 cu121/cu124
+echo " 安装 PyTorch 2.8+ ..."
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
-echo "  安装 TensorFlow..."
-pip install tensorflow-cpu
+# 3. 安装 TensorFlow (2.20+)
+echo " 安装 TensorFlow 2.20+ ..."
+pip install tensorflow --upgrade
 
-echo "  安装 Keras..."
-pip install keras
-
-echo "  安装 ONNX 生态..."
-pip install onnx onnxruntime
-
+# 验证安装
+python -c "import torch; print(f'PyTorch OK: {torch.__version__}')"
+python -c "import tensorflow as tf; print(f'TensorFlow OK: {tf.__version__}')"
 
 
 # ============================================
@@ -196,11 +198,7 @@ pip install \
 echo "🗄️ 安装向量数据库..."
 pip install \
     chromadb \
-    faiss-cpu \
-    pinecone-client \
-    qdrant-client \
-    weaviate-client \
-    pgvector
+    faiss-cpu 
 
 # ============================================
 # 11. 可视化库
@@ -208,11 +206,9 @@ pip install \
 echo "📊 安装可视化库..."
 pip install \
     plotly \
-    bokeh \
-    altair \
-    dash \
     streamlit \
-    gradio
+    matplotlib \
+    seaborn
 
 # ============================================
 # 12. 工具库
@@ -248,21 +244,22 @@ echo "✅ Jupyter AI v3.0 安装完成！"
 echo "=========================================="
 
 # ============================================
-# 【新增】预配置 Chat UI 的 config.json
+# 【修正】预配置 Chat UI 的 config.json
 # ============================================
-echo "🔧 预配置 Jupyter AI Chat UI..."
-
+echo "🔧 预配置 Jupyter AI Chat UI (指向 LiteLLM)..."
 JUPYTER_AI_CONFIG_DIR="/home/jovyan/.local/share/jupyter/jupyter_ai"
 mkdir -p ${JUPYTER_AI_CONFIG_DIR}
 
-# 写入 Chat UI 配置文件（正确格式）
+# 写入 Chat UI 配置文件
+# 关键变更：model_provider_id 改为 litellm
+# 关键变更：api_base 指向 localhost:4000 (LiteLLM Proxy)
 cat > ${JUPYTER_AI_CONFIG_DIR}/config.json << EOF
 {
-    "model_provider_id": "ollama",
-    "embeddings_provider_id": "ollama",
+    "model_provider_id": "litellm",
+    "embeddings_provider_id": "litellm",
     "completions_model_provider_id": null,
     "api_keys": {
-        "ollama": "none"
+        "litellm": "sk-litellm-dummy-key"
     },
     "send_with_shift_enter": false,
     "fields": {
@@ -270,21 +267,21 @@ cat > ${JUPYTER_AI_CONFIG_DIR}/config.json << EOF
             "value": "ollama/${OLLAMA_DEFAULT_MODEL}"
         },
         "api_base": {
-            "value": "${OLLAMA_EXTERNAL_URL}"
+            "value": "http://localhost:4000"
         },
         "temperature": {
-            "value": 0.7
+            "value": ${OLLAMA_TEMPERATURE}
         },
         "max_tokens": {
-            "value": 2048
+            "value": ${MAX_TOKENS}
         }
     },
     "embeddings_fields": {
         "model_name": {
-            "value": "ollama/nomic-embed-text"
+            "value": "ollama/${OLLAMA_EMBEDDING_MODEL}"
         },
         "api_base": {
-            "value": "${OLLAMA_EXTERNAL_URL}"
+            "value": "http://localhost:4000"
         }
     },
     "completions_fields": {}
@@ -343,53 +340,19 @@ sed -e "s|__OLLAMA_HOST__|${OLLAMA_HOST}|g" \
 # 删除模板文件（可选）
 rm -f /home/jovyan/.jupyter/litellm/config.yaml.template
 
-echo "✅ LiteLLM 配置完成"
+echo "✅ LiteLLM 配置文件生成完成"
 
-echo "✅ LiteLLM 配置完成"
+# ============================================
+# 15. 启动 LiteLLM Proxy 服务 (后台)
+# ============================================
+echo "🚀 配置 LiteLLM 启动服务..."
 
-# 创建 IPython 启动目录
-mkdir -p /home/jovyan/.ipython/profile_default/startup/
+# 创建日志目录
+mkdir -p /home/jovyan/.jupyter/litellm/logs
 
-# 写入自动加载脚本
-cat > /home/jovyan/.ipython/profile_default/startup/01_load_ai_magics.py << 'EOF'
-import os
-import litellm
+# 将启动命令写入 profile 或直接在启动脚本中调用
+# 我们将在 start_jupyter_ai.sh 中启动它
 
-# 从环境变量获取配置
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://192.168.112.136:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_DEFAULT_MODEL", "qwen2.5-coder:7b-q4")
-
-# 强制写入环境变量
-os.environ["OLLAMA_HOST"] = OLLAMA_HOST
-os.environ["OLLAMA_BASE_URL"] = OLLAMA_HOST
-
-# 模型全称
-full_model = f"ollama/{OLLAMA_MODEL}"
-
-# 注册模型
-new_model = {
-    "model_name": full_model,
-    "litellm_params": {
-        "model": full_model,
-        "api_base": OLLAMA_HOST,
-        "api_key": "none",
-        "temperature": 0.7,
-        "max_tokens": 2048
-    }
-}
-
-# 安全追加
-if not hasattr(litellm, "model_list"):
-    litellm.model_list = []
-
-model_names = [m["model_name"] for m in litellm.model_list]
-if new_model["model_name"] not in model_names:
-    litellm.model_list.append(new_model)
-
-echo "已加载模型: ollama/qwen2.5-coder:7b-q4"
-EOF
-
-echo " 内核自动加载配置完成"
 
 # ============================================
 # 15. 创建 kernel 配置（v3使用Python 3.11）
@@ -491,47 +454,6 @@ EOF
 # 删除旧版遗留配置（彻底清理）
 rm -f /home/jovyan/.jupyter/jupyter_ai_config.json
 
-# Jupyter AI v3 统一配置（与 Chat UI、LiteLLM 对齐）
-# 预配置 Chat UI（使用环境变量）
-# ============================================
-echo "🔧 预配置 Jupyter AI Chat UI..."
-
-mkdir -p /home/jovyan/.local/share/jupyter/jupyter_ai
-
-cat > /home/jovyan/.local/share/jupyter/jupyter_ai/config.json.template << 'EOF'
-{
-    "model_provider_id": "ollama",
-    "embeddings_provider_id": "ollama",
-    "completions_model_provider_id": null,
-    "api_keys": {"ollama": "none"},
-    "send_with_shift_enter": false,
-    "fields": {
-        "model_name": {"value": "ollama/__OLLAMA_DEFAULT_MODEL__"},
-        "api_base": {"value": "__OLLAMA_BASE_URL__"},
-        "temperature": {"value": __OLLAMA_TEMPERATURE__},
-        "max_tokens": {"value": __MAX_TOKENS__}
-    },
-    "embeddings_fields": {
-        "model_name": {"value": "ollama/__OLLAMA_EMBEDDING_MODEL__"},
-        "api_base": {"value": "__OLLAMA_BASE_URL__"}
-    },
-    "completions_fields": {}
-}
-EOF
-
-sed -e "s|__OLLAMA_DEFAULT_MODEL__|${OLLAMA_DEFAULT_MODEL}|g" \
-    -e "s|__OLLAMA_BASE_URL__|${OLLAMA_BASE_URL}|g" \
-    -e "s|__OLLAMA_TEMPERATURE__|${OLLAMA_TEMPERATURE}|g" \
-    -e "s|__MAX_TOKENS__|${MAX_TOKENS}|g" \
-    -e "s|__OLLAMA_EMBEDDING_MODEL__|${OLLAMA_EMBEDDING_MODEL}|g" \
-    /home/jovyan/.local/share/jupyter/jupyter_ai/config.json.template > /home/jovyan/.local/share/jupyter/jupyter_ai/config.json
-
-rm -f /home/jovyan/.local/share/jupyter/jupyter_ai/config.json.template
-
-echo "✅ Chat UI 配置已写入"
-
-echo "✅ Chat UI 配置已生成"
-
 # ============================================
 # 18. 创建 .env 文件
 # ============================================
@@ -590,6 +512,23 @@ echo "TensorFlow: $(python -c 'import tensorflow as tf; print(tf.__version__)' 2
 echo "=========================================="
 
 cp -f /home/jovyan/.env.final /home/jovyan/work/.env 2>/dev/null || true
+
+# --- 新增：启动 LiteLLM Proxy ---
+echo "🚀 启动 LiteLLM Proxy 服务 (端口 4000)..."
+nohup litellm --config /home/jovyan/.jupyter/litellm/config.yaml --port 4000 --host 0.0.0.0 > /home/jovyan/.jupyter/litellm/litellm.log 2>&1 &
+LITELLM_PID=$!
+echo "✅ LiteLLM PID: $LITELLM_PID"
+
+# 等待服务启动
+sleep 5
+
+# 检查是否启动成功
+if ! kill -0 $LITELLM_PID 2>/dev/null; then
+    echo "❌ LiteLLM 启动失败，请检查日志。"
+    cat /home/jovyan/.jupyter/litellm/litellm.log
+    exit 1
+fi
+
 # 直接在当前激活的环境中启动 Jupyter Lab
 exec jupyter lab \
     --port=${JUPYTER_PORT} \

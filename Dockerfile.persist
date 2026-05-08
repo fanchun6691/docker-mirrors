@@ -23,7 +23,7 @@ ENV OLLAMA_EMBEDDING_MODEL=nomic-embed-text
 ENV OLLAMA_TEMPERATURE=0.7
 ENV MAX_TOKENS=2048
 ENV HF_ENDPOINT=https://hf-mirror.com
-ENV  JUPYTER_AI_MODEL_IDS="ollama/qwen2.5-coder:7b-q4,ollama/nomic-embed-text"
+ENV JUPYTER_AI_MODEL_IDS="ollama/qwen2.5-coder:7b-q4,ollama/nomic-embed-text"
 # 切换到 root 用户进行系统级安装
 USER root
 
@@ -56,9 +56,8 @@ USER root
 # ============================================
 # 复制安装脚本文件
 # ============================================
-COPY install_persist.sh /home/jovyan/install_persist.sh
-RUN chown jovyan:users /home/jovyan/install_persist.sh && \
-         chmod +x /home/jovyan/install_persist.sh
+COPY --chown=jovyan:users install_persist.sh /home/jovyan/install_persist.sh
+RUN   chmod +x /home/jovyan/install_persist.sh
 
 # ============================================
 # 切换到 jovyan 用户
@@ -91,6 +90,7 @@ WORKDIR /home/jovyan/work
 # ============================================
 EXPOSE 8881
 EXPOSE 3001
+EXPOSE 4000 # LiteLLM Proxy 端口
 
 # ============================================
 # 健康检查
@@ -101,4 +101,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # ============================================
 # 设置入口点和默认命令
 # ============================================
-ENTRYPOINT ["/bin/bash", "/home/jovyan/start_jupyter_ai.sh"]
+ENTRYPOINT ["/home/jovyan/start_jupyter_ai.sh"]
