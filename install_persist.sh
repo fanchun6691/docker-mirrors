@@ -447,13 +447,13 @@ JUPYTER_PORT = int(os.environ.get('JUPYTER_PORT', 8881))
 JUPYTER_TOKEN = os.environ.get('JUPYTER_TOKEN', '')
 JUPYTER_PASSWORD = os.environ.get('JUPYTER_PASSWORD', '')
 OLLAMA_HOST = os.environ.get('OLLAMA_HOST', 'http://192.168.112.136:11434')
-
+JUPYTER_AI_MODEL_IDS = os.environ.get('JUPYTER_AI_MODEL_IDS', 'ollama/qwen2.7b-q4,ollama/nomic-embed-text')
 # 设置环境变量
 os.environ.setdefault('LITELLM_CONFIG_PATH', '/home/jovyan/.jupyter/litellm/config.yaml')
 os.environ.setdefault('LITELLM_LOCAL_MODEL_COST_MAP', 'True')
 os.environ.setdefault('OLLAMA_HOST', OLLAMA_HOST)
 os.environ.setdefault('OLLAMA_BASE_URL', OLLAMA_HOST)
-
+os.environ.setdefault('JUPYTER_AI_MODEL_IDS', JUPYTER_AI_MODEL_IDS)
 # Server 配置
 c = get_config()
 c.ServerApp.allow_root = True

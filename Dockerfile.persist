@@ -23,7 +23,7 @@ ENV OLLAMA_EMBEDDING_MODEL=nomic-embed-text
 ENV OLLAMA_TEMPERATURE=0.7
 ENV MAX_TOKENS=2048
 ENV HF_ENDPOINT=https://hf-mirror.com
-
+ENV  JUPYTER_AI_MODEL_IDS="ollama/qwen2.5-coder:7b-q4,ollama/nomic-embed-text"
 # 切换到 root 用户进行系统级安装
 USER root
 
