@@ -254,21 +254,17 @@ mkdir -p ${JUPYTER_AI_CONFIG_DIR}
 # 注意：Jupyter AI 的 config.json 结构非常严格，必须包含 chat_settings
 cat > ${JUPYTER_AI_CONFIG_DIR}/config.json << EOF
 {
-    "chat_settings": {
-        "model_provider_id": "litellm/ollama/qwen2.5-coder:7b-q4",
-        "api_keys": {
-            "LITELLM_API_KEY": "sk-litellm-dummy-key"
-        },
-        "fields": {
-            "api_base": "http://localhost:4000"
-        }
+    "model_provider_id": "litellm/ollama/qwen2.5-coder:7b-q4",
+    "embeddings_provider_id": "ollama",
+    "api_keys": {
+        "LITELLM_API_KEY": "sk-litellm-dummy-key"
     },
-    "embeddings_settings": {
-        "model_provider_id": "ollama",
-        "fields": {
-            "model_id": "nomic-embed-text",
-            "base_uri": "http://192.168.112.136:11434"
-        }
+    "fields": {
+        "api_base": "http://localhost:4000"
+    },
+    "embeddings_fields": {
+        "model_id": "nomic-embed-text",
+        "base_uri": "http://192.168.112.136:11434"
     }
 }
 EOF
@@ -397,13 +393,15 @@ JUPYTER_PORT = int(os.environ.get('JUPYTER_PORT', 8881))
 JUPYTER_TOKEN = os.environ.get('JUPYTER_TOKEN', '')
 JUPYTER_PASSWORD = os.environ.get('JUPYTER_PASSWORD', '')
 OLLAMA_HOST = os.environ.get('OLLAMA_HOST', 'http://192.168.112.136:11434')
-JUPYTER_AI_MODEL_IDS = os.environ.get('JUPYTER_AI_MODEL_IDS', 'ollama/qwen2.7b-q4,ollama/nomic-embed-text')
+
 # 设置环境变量
 os.environ.setdefault('LITELLM_CONFIG_PATH', '/home/jovyan/.jupyter/litellm/config.yaml')
 os.environ.setdefault('LITELLM_LOCAL_MODEL_COST_MAP', 'True')
 os.environ.setdefault('OLLAMA_HOST', OLLAMA_HOST)
 os.environ.setdefault('OLLAMA_BASE_URL', OLLAMA_HOST)
-os.environ.setdefault('JUPYTER_AI_MODEL_IDS', JUPYTER_AI_MODEL_IDS)
+os.environ.setdefault('OLLAMA_DEFAULT_MODEL', OLLAMA_DEFAULT_MODEL)
+os.environ.setdefault('OLLAMA_EMBEDDING_MODEL', OLLAMA_EMBEDDING_MODEL)
+
 # Server 配置
 c = get_config()
 c.ServerApp.allow_root = True
@@ -438,31 +436,6 @@ c.ServerApp.jpserver_extensions = {
 }
 EOF
 
-# 删除旧版遗留配置（彻底清理）
-rm -f /home/jovyan/.jupyter/jupyter_ai_config.json
-
-# ============================================
-# 18. 创建 .env 文件
-# ============================================
-cat > /home/jovyan/.env.final << EOF
-# ==========================
-# 【唯一配置中心】只维护这里
-# ==========================
-OLLAMA_HOST=http://192.168.112.136:11434
-OLLAMA_DEFAULT_MODEL=qwen2.5-coder
-OLLAMA_TEMPERATURE=0.7
-OLLAMA_MAX_TOKENS=2048
-# 嵌入模型（向量化）
-OLLAMA_EMBEDDING_MODEL=nomic-embed-text
-
-LITELLM_CONFIG_PATH=/home/jovyan/.jupyter/litellm/config.yaml
-LITELLM_LOCAL_MODEL_COST_MAP=True
-
-HF_ENDPOINT=https://hf-mirror.com
-TF_CPP_MIN_LOG_LEVEL=2
-PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
-EOF
-
 # ============================================
 # 19. 创建启动脚本（使用环境变量）
 # ============================================
@@ -483,6 +456,10 @@ export JUPYTER_ENABLE_LAB=yes
 export OLLAMA_HOST=${OLLAMA_HOST:-http://192.168.112.136:11434}
 export OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-${OLLAMA_HOST}}
 export OLLAMA_DEFAULT_MODEL=${OLLAMA_DEFAULT_MODEL:-qwen2.5-coder:7b-q4}
+export OLLAMA_TEMPERATURE=${OLLAMA_TEMPERATURE:-0.7}
+export OLLAMA_EMBEDDING_MODEL=${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+export OLLAMA_MAX_TOKENS=${OLLAMA_MAX_TOKENS:-2048}
+export HF_ENDPOINT=${HF_ENDPOINT:-https://hf-mirror.com}
 
 # 深度学习框架环境变量
 export TF_CPP_MIN_LOG_LEVEL=2
@@ -498,7 +475,6 @@ echo "PyTorch: $(python -c 'import torch; print(torch.__version__)' 2>/dev/null 
 echo "TensorFlow: $(python -c 'import tensorflow as tf; print(tf.__version__)' 2>/dev/null || echo '未安装')"
 echo "=========================================="
 
-cp -f /home/jovyan/.env.final /home/jovyan/work/.env 2>/dev/null || true
 
 # --- 新增：启动 LiteLLM Proxy ---
 echo "🚀 启动 LiteLLM Proxy 服务 (端口 4000)..."
