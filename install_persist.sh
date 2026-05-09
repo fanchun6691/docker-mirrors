@@ -243,50 +243,37 @@ echo "=========================================="
 echo "✅ Jupyter AI v3.0 安装完成！"
 echo "=========================================="
 
-# ============================================
-# 【修正】预配置 Chat UI 的 config.json
-# ============================================
-echo "🔧 预配置 Jupyter AI Chat UI (指向 LiteLLM)..."
-JUPYTER_AI_CONFIG_DIR="/home/jovyan/.local/share/jupyter/jupyter_ai"
+# 1. 确定正确的配置目录（不要改动！）
+# Jupyter AI 默认读取的是 XDG_DATA_HOME 目录下的配置
+export JUPYTER_AI_CONFIG_DIR="/home/jovyan/.local/share/jupyter/jupyter_ai"
+
+echo "🔧 正在修复 Jupyter AI 配置目录: ${JUPYTER_AI_CONFIG_DIR}"
 mkdir -p ${JUPYTER_AI_CONFIG_DIR}
 
-# 写入 Chat UI 配置文件
-# 关键变更：model_provider_id 改为 litellm
-# 关键变更：api_base 指向 localhost:4000 (LiteLLM Proxy)
+# 2. 写入修正后的 config.json
+# 注意：Jupyter AI 的 config.json 结构非常严格，必须包含 chat_settings
 cat > ${JUPYTER_AI_CONFIG_DIR}/config.json << EOF
 {
-    "model_provider_id": "litellm",
-    "embeddings_provider_id": "litellm",
-    "completions_model_provider_id": null,
-    "api_keys": {
-        "litellm": "sk-litellm-dummy-key"
-    },
-    "send_with_shift_enter": false,
-    "fields": {
-        "model_name": {
-            "value": "ollama/${OLLAMA_DEFAULT_MODEL}"
+    "chat_settings": {
+        "model_provider_id": "litellm/ollama/qwen2.5-coder:7b-q4",
+        "api_keys": {
+            "LITELLM_API_KEY": "sk-litellm-dummy-key"
         },
-        "api_base": {
-            "value": "http://localhost:4000"
-        },
-        "temperature": {
-            "value": ${OLLAMA_TEMPERATURE}
-        },
-        "max_tokens": {
-            "value": ${MAX_TOKENS}
+        "fields": {
+            "api_base": "http://localhost:4000"
         }
     },
-    "embeddings_fields": {
-        "model_name": {
-            "value": "ollama/${OLLAMA_EMBEDDING_MODEL}"
-        },
-        "api_base": {
-            "value": "http://localhost:4000"
+    "embeddings_settings": {
+        "model_provider_id": "ollama",
+        "fields": {
+            "model_id": "nomic-embed-text",
+            "base_uri": "http://192.168.112.136:11434"
         }
-    },
-    "completions_fields": {}
+    }
 }
 EOF
+
+echo "✅ 修复完成！请重启 JupyterLab。"
 
 echo "✅ Chat UI 配置已写入: ${JUPYTER_AI_CONFIG_DIR}/config.json"
 
