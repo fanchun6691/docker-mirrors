@@ -243,35 +243,41 @@ echo "=========================================="
 echo "✅ Jupyter AI v3.0 安装完成！"
 echo "=========================================="
 
-# 1. 确定正确的配置目录（不要改动！）
-# Jupyter AI 默认读取的是 XDG_DATA_HOME 目录下的配置
+# ============================================
+# 1. 确定配置目录
+# ============================================
 export JUPYTER_AI_CONFIG_DIR="/home/jovyan/.local/share/jupyter/jupyter_ai"
 
-echo "🔧 正在修复 Jupyter AI 配置目录: ${JUPYTER_AI_CONFIG_DIR}"
+# ============================================
+# 2. 生成最终修复版 config.json
+# ============================================
 mkdir -p ${JUPYTER_AI_CONFIG_DIR}
 
-# 2. 写入修正后的 config.json
-# 注意：Jupyter AI 的 config.json 结构非常严格，必须包含 chat_settings
 cat > ${JUPYTER_AI_CONFIG_DIR}/config.json << EOF
 {
     "model_provider_id": "litellm/ollama/qwen2.5-coder:7b-q4",
-    "embeddings_provider_id": "ollama",
+    "embeddings_provider_id": "ollama-chat",
     "api_keys": {
         "LITELLM_API_KEY": "sk-litellm-dummy-key"
     },
     "fields": {
-        "api_base": "http://localhost:4000"
+        "api_base": {
+            "value": "${OLLAMA_HOST}"
+        }
     },
     "embeddings_fields": {
-        "model_id": "nomic-embed-text",
-        "base_uri": "http://192.168.112.136:11434"
+        "model_id": {
+            "value": "${OLLAMA_EMBEDDING_MODEL}"
+        },
+        "base_uri": {
+            "value": "${OLLAMA_HOST}"
+        }
     }
 }
 EOF
 
-echo "✅ 修复完成！请重启 JupyterLab。"
-
-echo "✅ Chat UI 配置已写入: ${JUPYTER_AI_CONFIG_DIR}/config.json"
+echo "✅ Jupyter AI 配置已修复完成！"
+echo "📍 配置路径：${JUPYTER_AI_CONFIG_DIR}/config.json"
 
 # ============================================
 # 14. 配置 LiteLLM 模型列表
