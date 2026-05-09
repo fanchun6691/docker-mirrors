@@ -72,15 +72,12 @@ pip install --no-cache-dir --force-reinstall \
   "jupyter-ai-magic-commands" \
   "jupyter-ai-jupyternaut" \
   "jupyter-ai-tools" \
-  "jupyter-ai-litellm == 0.0.2" \
+  "jupyter-ai-litellm==0.0.2" \
   "jupyter_server_mcp" \
-    ipykernel \
-    ipywidgets \
-    jupyterlab-language-pack-zh-CN \
-    litellm \
-    'litellm[proxy]' \
-    backoff
-    
+  ipykernel \
+  ipywidgets \
+  jupyterlab-language-pack-zh-CN \
+  'litellm[proxy]'    
 
 # 修复 jupyter-ai-litellm 的版本显示 bug
 SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
