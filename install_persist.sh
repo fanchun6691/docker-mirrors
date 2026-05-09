@@ -67,7 +67,7 @@ pip uninstall jupyter-ai-litellm -y 2>/dev/null
 rm -rf /opt/conda/envs/ai_env/lib/python3.11/site-packages/jupyter_ai_litellm*
 pip cache purge
 
-pip install --no-cache-dir --force-reinstall \
+pip install --no-cache-dir --force-reinstall --upgrade \
   "jupyter-ai>=3.0.0" \
   "jupyter-ai-magic-commands" \
   "jupyter-ai-jupyternaut" \
@@ -99,7 +99,7 @@ jupyter server extension list | grep jupyter_ai
 # 4. 安装 LangChain 生态
 # ============================================
 echo "🦜 安装 LangChain 生态..."
-pip install \
+pip install  --upgrade\
     langchain \
     langchain-core \
     langchain-community \
@@ -139,7 +139,7 @@ jupyter labextension list | grep -E "jupyter-ai|jupyternaut|mcp" || true
 # 6. 数据科学基础库
 # ============================================
 echo "📚 安装数据科学基础库..."
-pip install \
+pip install --upgrade\
     numpy \
     pandas \
     matplotlib \
@@ -174,7 +174,7 @@ python -c "import tensorflow as tf; print(f'TensorFlow OK: {tf.__version__}')"
 # 9. AI 模型工具
 # ============================================
 echo "🤗 安装 AI 模型工具..."
-pip install \
+pip install  --upgrade\
     transformers \
     datasets \
     accelerate \
@@ -184,7 +184,7 @@ pip install \
     tokenizers \
     huggingface-hub
 
-pip install \
+pip install --upgrade \
     openai \
     anthropic \
     google-generativeai \
@@ -196,7 +196,7 @@ pip install \
 # 10. 向量数据库
 # ============================================
 echo "🗄️ 安装向量数据库..."
-pip install \
+pip install --upgrade \
     chromadb \
     faiss-cpu 
 
@@ -204,7 +204,7 @@ pip install \
 # 11. 可视化库
 # ============================================
 echo "📊 安装可视化库..."
-pip install \
+pip install --upgrade \
     plotly \
     streamlit \
     matplotlib \
@@ -214,7 +214,7 @@ pip install \
 # 12. 工具库
 # ============================================
 echo "🔧 安装工具库..."
-pip install \
+pip install --upgrade \
     requests \
     tqdm \
     python-dotenv \
@@ -233,7 +233,7 @@ pip install \
 # 13. Jupyter 扩展
 # ============================================
 echo "🧩 安装 Jupyter 扩展..."
-pip install \
+pip install --upgrade \
     jupyterlab-git \
     jupyterlab-lsp \
     jupyterlab-code-formatter \
