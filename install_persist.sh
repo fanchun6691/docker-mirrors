@@ -510,6 +510,30 @@ echo "PyTorch: $(python -c 'import torch; print(torch.__version__)' 2>/dev/null 
 echo "TensorFlow: $(python -c 'import tensorflow as tf; print(tf.__version__)' 2>/dev/null || echo '未安装')"
 echo "=========================================="
 
+# ============================================
+# 🔥 启动时自动补丁：Jupyternaut 读取 OLLAMA_HOST 环境变量
+# ============================================
+echo "🔧 启动时自动修复 Jupyternaut 硬编码问题..."
+
+# 获取当前 Python 环境的包路径
+SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
+JUPYTERNAUT_CHAT_MODELS="${SITE_PACKAGES}/jupyter_ai_jupyternaut/jupyternaut/chat_models.py"
+
+if [ -f "$JUPYTERNAUT_CHAT_MODELS" ]; then
+    # 1. 确保文件有 import os（没有才加，绝对不多余）
+    if ! grep -q '^import os' "$JUPYTERNAUT_CHAT_MODELS"; then
+        sed -i '1i import os' "$JUPYTERNAUT_CHAT_MODELS"
+        echo "✅ 已添加 import os"
+    fi
+
+    # 2. 替换所有硬编码地址 → 读取环境变量 OLLAMA_HOST
+    sed -i "s|\"http://localhost:11434\"|os.getenv('OLLAMA_HOST')|g" "$JUPYTERNAUT_CHAT_MODELS"
+    sed -i "s|\"http://127.0.0.1:11434\"|os.getenv('OLLAMA_HOST')|g" "$JUPYTERNAUT_CHAT_MODELS"
+
+    echo "✅ Jupyternaut 已成功使用 OLLAMA_HOST 环境变量"
+else
+    echo "⚠️ Jupyternaut 未安装，跳过补丁"
+fi
 
 # --- 新增：启动 LiteLLM Proxy ---
 echo "🚀 启动 LiteLLM Proxy 服务 (端口 4000)..."
@@ -555,28 +579,6 @@ rm -rf /home/jovyan/.cache/conda
 rm -rf /home/jovyan/.cache/huggingface
 rm -rf /tmp/pip-*
 rm -rf /tmp/tmp*
-
-# ============================================
-# Jupyternaut 硬编码 localhost → 读取环境变量 OLLAMA_HOST
-# ============================================
-echo "🔧 补丁：Jupyternaut 从 OLLAMA_HOST 环境变量读取地址..."
-
-SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
-JUPYTERNAUT_CHAT_MODELS="${SITE_PACKAGES}/jupyter_ai_jupyternaut/jupyternaut/chat_models.py"
-
-if [ -f "$JUPYTERNAUT_CHAT_MODELS" ]; then
-    # 👉 关键：确保文件顶部有 import os
-    if ! grep -q '^import os' "$JUPYTERNAUT_CHAT_MODELS"; then
-        sed -i '1i import os' "$JUPYTERNAUT_CHAT_MODELS"
-        echo "✅ 已添加 import os"
-    fi
-
-    # 替换所有硬编码地址为环境变量
-    sed -i "s|\"http://localhost:11434\"|os.getenv('OLLAMA_HOST')|g" "$JUPYTERNAUT_CHAT_MODELS"
-    sed -i "s|\"http://127.0.0.1:11434\"|os.getenv('OLLAMA_HOST')|g" "$JUPYTERNAUT_CHAT_MODELS"
-
-    echo "✅ Jupyternaut 已完全使用 OLLAMA_HOST 环境变量"
-fi
 
 
 # ============================================
