@@ -385,7 +385,7 @@ CONFIG_DIR="/home/jovyan/.jupyter"
 mkdir -p ${CONFIG_DIR}
 
 # 统一的 jupyter_server_config.py（使用环境变量）
-cat > ${CONFIG_DIR}/jupyter_server_config.py << EOF
+cat > ${CONFIG_DIR}/jupyter_server_config.py << 'EOF'
 import os
 
 # 从环境变量读取配置
@@ -393,6 +393,8 @@ JUPYTER_PORT = int(os.environ.get('JUPYTER_PORT', 8881))
 JUPYTER_TOKEN = os.environ.get('JUPYTER_TOKEN', '')
 JUPYTER_PASSWORD = os.environ.get('JUPYTER_PASSWORD', '')
 OLLAMA_HOST = os.environ.get('OLLAMA_HOST', 'http://192.168.112.136:11434')
+OLLAMA_DEFAULT_MODEL = os.environ.get('OLLAMA_DEFAULT_MODEL', 'qwen2.5-coder:7b-q4')
+OLLAMA_EMBEDDING_MODEL = os.environ.get('OLLAMA_EMBEDDING_MODEL', 'nomic-embed-text') # 确保获取该变量
 
 # 设置环境变量
 os.environ.setdefault('LITELLM_CONFIG_PATH', '/home/jovyan/.jupyter/litellm/config.yaml')
@@ -413,13 +415,11 @@ c.ServerApp.allow_remote_access = True
 c.ServerApp.root_dir = '/home/jovyan'
 c.ServerApp.trust_xheaders = True
 c.ServerApp.disable_check_xsrf = True
-# 设置日志级别为 DEBUG
 c.ServerApp.log_level = 'DEBUG'
 
-# 认证配置（优先使用 token，如果没有则允许无密码）
+# 认证配置
 if JUPYTER_TOKEN:
     c.IdentityProvider.token = JUPYTER_TOKEN
-
 elif JUPYTER_PASSWORD:
     from jupyter_server.auth import passwd
     c.IdentityProvider.hashed_password = passwd(JUPYTER_PASSWORD)
@@ -428,11 +428,36 @@ else:
     c.IdentityProvider.password = ''
 c.ContentsManager.allow_hidden = True
 c.LabApp.extensions_in_dev_mode = False
+
 # 启用 Jupyter AI 扩展
 c.ServerApp.jpserver_extensions = {
-    "jupyter_ai_litellm": True,      # LiteLLM 集成
-    "jupyter_ai_jupyternaut": True,   # AI 助手
-    "jupyter_ai_tools": True          # 工具集
+    "jupyter_ai_litellm": True,
+    "jupyter_ai_jupyternaut": True,
+    "jupyter_ai_tools": True
+}
+
+# ============================================
+# 🔧 AI Extension 配置 (修复关键错误)
+# ============================================
+# 解决 ValidationError: Input should be a valid dictionary
+# 必须使用嵌套字典格式 {"value": "..."}，不能直接赋字符串
+c.JupyternautExtension.config = {
+    "fields": {
+        "api_base": {
+            "value": OLLAMA_HOST  # 使用上面定义的变量
+        },
+        "model_id": {
+            "value": OLLAMA_DEFAULT_MODEL
+        }
+    },
+    "embeddings_fields": {
+        "model_id": {
+            "value": OLLAMA_EMBEDDING_MODEL
+        },
+        "base_uri": {
+            "value": OLLAMA_HOST
+        }
+    }
 }
 EOF
 
