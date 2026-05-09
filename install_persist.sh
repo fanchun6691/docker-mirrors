@@ -255,7 +255,7 @@ mkdir -p ${JUPYTER_AI_CONFIG_DIR}
 
 cat > ${JUPYTER_AI_CONFIG_DIR}/config.json << EOF
 {
-    "model_provider_id": "litellm/ollama/qwen2.5-coder:7b-q4",
+    "model_provider_id": "ollama/qwen2.5-coder:7b-q4",
     "embeddings_provider_id": "ollama-chat",
     "api_keys": {
         "LITELLM_API_KEY": "sk-litellm-dummy-key"
@@ -465,6 +465,10 @@ c.JupyternautExtension.config = {
         }
     }
 }
+c.Jupyternaut.api_base = OLLAMA_HOST
+c.OllamaProvider.api_base = OLLAMA_HOST
+c.AIProvider.api_base = OLLAMA_HOST
+c.Jupyternaut.allow_fallback = False
 EOF
 
 # ============================================
@@ -551,6 +555,29 @@ rm -rf /home/jovyan/.cache/conda
 rm -rf /home/jovyan/.cache/huggingface
 rm -rf /tmp/pip-*
 rm -rf /tmp/tmp*
+
+# ============================================
+# Jupyternaut 硬编码 localhost → 读取环境变量 OLLAMA_HOST
+# ============================================
+echo "🔧 补丁：Jupyternaut 从 OLLAMA_HOST 环境变量读取地址..."
+
+SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
+JUPYTERNAUT_CHAT_MODELS="${SITE_PACKAGES}/jupyter_ai_jupyternaut/jupyternaut/chat_models.py"
+
+if [ -f "$JUPYTERNAUT_CHAT_MODELS" ]; then
+    # 👉 关键：确保文件顶部有 import os
+    if ! grep -q '^import os' "$JUPYTERNAUT_CHAT_MODELS"; then
+        sed -i '1i import os' "$JUPYTERNAUT_CHAT_MODELS"
+        echo "✅ 已添加 import os"
+    fi
+
+    # 替换所有硬编码地址为环境变量
+    sed -i "s|\"http://localhost:11434\"|os.getenv('OLLAMA_HOST')|g" "$JUPYTERNAUT_CHAT_MODELS"
+    sed -i "s|\"http://127.0.0.1:11434\"|os.getenv('OLLAMA_HOST')|g" "$JUPYTERNAUT_CHAT_MODELS"
+
+    echo "✅ Jupyternaut 已完全使用 OLLAMA_HOST 环境变量"
+fi
+
 
 # ============================================
 # 22. 验证安装（在激活的环境下执行）
