@@ -543,7 +543,6 @@ chmod +x /home/jovyan/start_jupyter_ai.sh
 # 20. 修复权限
 # ============================================
 chown -R jovyan:users /home/jovyan/.jupyter
-chown -R jovyan:users /home/jovyan/.ipython
 chown -R jovyan:users /home/jovyan/.local/share/jupyter/kernels
 chown -R jovyan:users /home/jovyan/.cache
 
