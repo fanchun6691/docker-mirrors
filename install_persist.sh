@@ -77,7 +77,10 @@ pip install --no-cache-dir --force-reinstall \
     ipykernel \
     ipywidgets \
     jupyterlab-language-pack-zh-CN \
-    litellm 
+    litellm \
+    'litellm[proxy]' \
+    backoff
+    
 
 # 修复 jupyter-ai-litellm 的版本显示 bug
 SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
