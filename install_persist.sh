@@ -441,34 +441,8 @@ c.ServerApp.jpserver_extensions = {
     "jupyter_ai_jupyternaut": True,
     "jupyter_ai_tools": True
 }
-
-# ============================================
-# 🔧 AI Extension 配置 (修复关键错误)
-# ============================================
-# 解决 ValidationError: Input should be a valid dictionary
-# 必须使用嵌套字典格式 {"value": "..."}，不能直接赋字符串
-c.JupyternautExtension.config = {
-    "fields": {
-        "api_base": {
-            "value": OLLAMA_HOST  # 使用上面定义的变量
-        },
-        "model_id": {
-            "value": OLLAMA_DEFAULT_MODEL
-        }
-    },
-    "embeddings_fields": {
-        "model_id": {
-            "value": OLLAMA_EMBEDDING_MODEL
-        },
-        "base_uri": {
-            "value": OLLAMA_HOST
-        }
-    }
-}
-c.Jupyternaut.api_base = OLLAMA_HOST
-c.OllamaProvider.api_base = OLLAMA_HOST
-c.AIProvider.api_base = OLLAMA_HOST
-c.Jupyternaut.allow_fallback = False
+# 强制指定 API Base (双重保险)
+c.JupyternautExtension.api_base = OLLAMA_HOST
 EOF
 
 # ============================================
@@ -483,7 +457,7 @@ export JUPYTER_TOKEN=${JUPYTER_TOKEN:-}
 export JUPYTER_PASSWORD=${JUPYTER_PASSWORD:-}
 
 source /opt/conda/etc/profile.d/conda.sh
-conda activate ai_env
+conda activate ${CONDA_ENV_NAME:-ai_env}
 
 export LITELLM_CONFIG_PATH=/home/jovyan/.jupyter/litellm/config.yaml
 export LITELLM_LOCAL_MODEL_COST_MAP=True
@@ -510,31 +484,6 @@ echo "PyTorch: $(python -c 'import torch; print(torch.__version__)' 2>/dev/null 
 echo "TensorFlow: $(python -c 'import tensorflow as tf; print(tf.__version__)' 2>/dev/null || echo '未安装')"
 echo "=========================================="
 
-# ============================================
-# 🔥 启动时自动补丁：Jupyternaut 读取 OLLAMA_HOST 环境变量
-# ============================================
-echo "🔧 启动时自动修复 Jupyternaut 硬编码问题..."
-
-# 获取当前 Python 环境的包路径
-SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
-JUPYTERNAUT_CHAT_MODELS="${SITE_PACKAGES}/jupyter_ai_jupyternaut/jupyternaut/chat_models.py"
-
-if [ -f "$JUPYTERNAUT_CHAT_MODELS" ]; then
-    # 1. 确保文件有 import os（没有才加，绝对不多余）
-    if ! grep -q '^import os' "$JUPYTERNAUT_CHAT_MODELS"; then
-        sed -i '1i import os' "$JUPYTERNAUT_CHAT_MODELS"
-        echo "✅ 已添加 import os"
-    fi
-
-    # 2. 替换所有硬编码地址 → 读取环境变量 OLLAMA_HOST
-    sed -i "s|\"http://localhost:11434\"|os.getenv('OLLAMA_HOST')|g" "$JUPYTERNAUT_CHAT_MODELS"
-    sed -i "s|\"http://127.0.0.1:11434\"|os.getenv('OLLAMA_HOST')|g" "$JUPYTERNAUT_CHAT_MODELS"
-
-    echo "✅ Jupyternaut 已成功使用 OLLAMA_HOST 环境变量"
-else
-    echo "⚠️ Jupyternaut 未安装，跳过补丁"
-fi
-
 # --- 新增：启动 LiteLLM Proxy ---
 echo "🚀 启动 LiteLLM Proxy 服务 (端口 4000)..."
 nohup litellm --config /home/jovyan/.jupyter/litellm/config.yaml --port 4000 --host 0.0.0.0 > /home/jovyan/.jupyter/litellm/litellm.log 2>&1 &
@@ -551,6 +500,38 @@ if ! kill -0 $LITELLM_PID 2>/dev/null; then
     exit 1
 fi
 
+# 动态创建系统级的配置目录 ---
+CONFIG_D_DIR="/opt/conda/envs/${CONDA_ENV_NAME}/etc/jupyter/jupyter_server_config.d"
+mkdir -p ${CONFIG_D_DIR}
+# --- B. 生成 JSON 配置文件 (专门修复插件连 localhost 的问题) ---
+echo "📄 生成 jupyter-ai-jupyternaut.json 配置文件..."
+
+cat > ${CONFIG_D_DIR}/jupyter-ai-jupyternaut.json << JSONEOF
+{
+  "JupyternautExtension": {
+    "api_base": "${OLLAMA_HOST}",
+    "config": {
+      "fields": {
+        "api_base": {
+          "value": "${OLLAMA_HOST}"
+        },
+        "model_id": {
+          "value": "${OLLAMA_DEFAULT_MODEL}"
+        }
+      },
+      "embeddings_fields": {
+        "model_id": {
+          "value": "${OLLAMA_EMBEDDING_MODEL}"
+        },
+        "base_uri": {
+          "value": "${OLLAMA_HOST}"
+        }
+      }
+    }
+  }
+}
+echo "✅ 配置文件生成完毕！目标地址: ${OLLAMA_HOST}"
+JSONEOF
 # 直接在当前激活的环境中启动 Jupyter Lab
 exec jupyter lab \
     --port=${JUPYTER_PORT} \
