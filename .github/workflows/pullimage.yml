@@ -15,10 +15,10 @@ jobs:
           sudo apt-get clean
           df -h
       - name: 拉取官方镜像
-        run: docker pull jupyter/scipy-notebook:python-3.12
+        run: docker pull jupyter/scipy-notebook::lab-4.0
 
       - name: 导出为 tar 镜像文件
-        run: docker save jupyter/scipy-notebook:python-3.12 | gzip > jupyterai.tar.gz
+        run: docker save jupyter/scipy-notebook::lab-4.0 | gzip > jupyterai.tar.gz
 
       - name: 上传为可下载产物
         uses: actions/upload-artifact@v4
