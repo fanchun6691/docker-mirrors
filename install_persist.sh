@@ -530,8 +530,9 @@ cat > ${CONFIG_D_DIR}/jupyter-ai-jupyternaut.json << JSONEOF
     }
   }
 }
-echo "✅ 配置文件生成完毕！目标地址: ${OLLAMA_HOST}"
 JSONEOF
+echo "✅ 配置文件生成完毕！目标地址: ${OLLAMA_HOST}"
+
 # 直接在当前激活的环境中启动 Jupyter Lab
 exec jupyter lab \
     --port=${JUPYTER_PORT} \
