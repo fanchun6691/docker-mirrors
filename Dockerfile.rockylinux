@@ -9,6 +9,7 @@ RUN dnf clean all && \
         python3 python3-pip \
         openssh-clients \
         "@Development Tools" \
+        gcc gcc-c++ python3-devel \
         autoconf automake libtool \
         ncurses-devel libpcap readline-devel \
         bash net-tools \
@@ -26,3 +27,4 @@ RUN mkdir -p /root/.ssh /root/q && \
 
 RUN echo "alias python=python3" >> /root/.bashrc && \
     echo "alias pip=pip3" >> /root/.bashrc
+
