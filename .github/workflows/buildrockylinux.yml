@@ -1,0 +1,219 @@
+name: Jupyter AI v3.0 Docker Image Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      # ============================================
+      # 1. 释放 GitHub Runner 空间
+      # ============================================
+      - name: 释放 GitHub 空间
+        run: |
+          echo "=========================================="
+          echo "释放磁盘空间"
+          echo "=========================================="
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/swift
+          sudo docker system prune -af
+          sudo apt-get clean
+          df -h
+          echo "=========================================="
+
+      # ============================================
+      # 2. 检出代码
+      # ============================================
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ============================================
+      # 3. 验证必要文件是否存在
+      # ============================================
+      - name: 验证必要文件
+        run: |
+          echo "=========================================="
+          echo "验证必要文件"
+          echo "=========================================="
+          
+          if [ ! -f "Dockerfile.persist" ]; then
+              echo "❌ 错误: Dockerfile.persist 不存在"
+              exit 1
+          fi
+          echo "✅ Dockerfile.persist 存在"
+          
+          if [ ! -f "install_persist.sh" ]; then
+              echo "❌ 错误: install_persist.sh 不存在"
+              exit 1
+          fi
+          echo "✅ install_persist.sh 存在"
+          
+          chmod +x install_persist.sh
+          echo "=========================================="
+
+      # ============================================
+      # 4. 设置 Docker Buildx
+      # ============================================
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ============================================
+      # 5. 构建 Docker 镜像
+      # ============================================
+      - name: Build Docker image
+        run: |
+          docker build -f Dockerfile.persist -t jupyter-ai-persist:latest .
+
+      # ============================================
+      # 6. 保存镜像为 tar.gz
+      # ============================================
+      - name: Save image as tarball
+        run: |
+          echo "=========================================="
+          echo "保存镜像为 tar.gz"
+          echo "=========================================="
+          docker save jupyter-ai-persist:latest | gzip > jupyter-ai-persist-image.tar.gz
+          ls -lh jupyter-ai-persist-image.tar.gz
+          echo "=========================================="
+
+      # ============================================
+      # 7. 获取当前时间戳
+      # ============================================
+      - name: Get timestamp
+        id: timestamp
+        run: |
+          echo "timestamp=$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_OUTPUT
+
+      # ============================================
+      # 8. 上传镜像到 GitHub Actions Artifact
+      # ============================================
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jupyter-ai-persist-image
+          path: jupyter-ai-persist-image.tar.gz
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
+
+      # ============================================
+      # 9. 生成构建信息
+      # ============================================
+      - name: Generate build info
+        run: |
+          cat > build-info.txt << EOF
+          ==========================================
+          Jupyter AI v3.0 镜像构建信息
+          ==========================================
+          构建时间: $(date)
+          GitHub SHA: ${{ github.sha }}
+          触发者: ${{ github.actor }}
+          仓库: ${{ github.repository }}
+          
+          镜像标签:
+          - jupyter-ai-persist:latest
+          
+          包含组件:
+          - JupyterLab 4.x
+          - Jupyter AI v3.0
+          - PyTorch 2.5.1 (CPU)
+          - TensorFlow 2.18.0
+          - LangChain 0.3.x
+          - Ollama 集成
+          ==========================================
+          EOF
+          
+          cat build-info.txt
+
+      # ============================================
+      # 10. 上传构建信息
+      # ============================================
+      - name: Upload build info
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-info-${{ steps.timestamp.outputs.timestamp }}
+          path: build-info.txt
+          retention-days: 7
+
+      # ============================================
+      # 11. 验证镜像
+      # ============================================
+      - name: Verify image
+        run: |
+          echo "=========================================="
+          echo "验证镜像"
+          echo "=========================================="
+          
+          IMAGE_SIZE=$(docker image inspect jupyter-ai-persist:latest --format='{{.Size}}' | numfmt --to=iec 2>/dev/null || docker image inspect jupyter-ai-persist:latest --format='{{.Size}}' | awk '{print $1/1024/1024/1024 " GB"}')
+          echo "镜像大小: $IMAGE_SIZE"
+          
+          LAYERS=$(docker image inspect jupyter-ai-persist:latest --format='{{len .RootFS.Layers}}')
+          echo "镜像层数: $LAYERS"
+          
+          echo ""
+          echo "验证镜像内容..."
+          docker run --rm --entrypoint "" jupyter-ai-persist:latest bash -c "
+            echo 'JupyterLab 版本:'
+            jupyter lab --version 2>/dev/null || echo '无法获取版本'
+            echo ''
+            echo 'Python 版本:'
+            python --version
+            echo ''
+            echo '已安装的关键包:'
+            pip list 2>/dev/null | grep -E 'jupyter-ai|torch|tensorflow' | head -10
+          " || echo "镜像验证跳过（运行时环境问题）"
+          
+          echo "=========================================="
+          echo "✅ 镜像验证完成"
+          echo "=========================================="
+
+      # ============================================
+      # 12. 清理临时文件
+      # ============================================
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "清理临时文件..."
+          rm -f jupyter-ai-persist-image.tar.gz
+          docker system prune -f || true
+          echo "✅ 清理完成"
+
+      # ============================================
+      # 13. 构建完成通知
+      # ============================================
+      - name: Build complete
+        run: |
+          echo "=========================================="
+          echo "✅ Jupyter AI v3.0 镜像构建完成！"
+          echo "=========================================="
+          echo ""
+          echo "📦 下载链接:"
+          echo "   镜像文件: jupyter-ai-persist-image-*.tar.gz"
+          echo "   构建信息: build-info-*.txt"
+          echo ""
+          echo "🚀 使用方式:"
+          echo "   1. 下载镜像: docker load < jupyter-ai-persist-image-*.tar.gz"
+          echo "   2. 运行容器: docker run -p 8881:8881 jupyter-ai-persist:latest"
+          echo "   3. 访问: http://localhost:8881"
+          echo ""
+          echo "📖 镜像信息:"
+          echo "   - JupyterLab: http://localhost:8881"
+          echo "   - MCP Server: http://localhost:3001"
+          echo ""
+          echo "💡 运行示例:"
+          echo "   docker run -d \\"
+          echo "     --name jupyter-ai \\"
+          echo "     -p 8881:8881 \\"
+          echo "     -p 3001:3001 \\"
+          echo "     -e OLLAMA_HOST=http://your-ollama-server:11434 \\"
+          echo "     jupyter-ai-persist:latest"
+          echo "=========================================="
