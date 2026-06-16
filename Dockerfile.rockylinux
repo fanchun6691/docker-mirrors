@@ -2,13 +2,15 @@ FROM rockylinux/rockylinux:10
 
 RUN dnf clean all && \
     dnf makecache && \
+    dnf install -y epel-release && \
+    dnf makecache && \
     dnf install -y \
         git dos2unix tar gzip curl \
         python3 python3-pip \
         openssh-clients \
-        @Development Tools \
+        "@Development Tools" \
         autoconf automake libtool \
-        ncurses-devel libpcap-devel readline-devel \
+        ncurses-devel libpcap readline-devel \
         bash net-tools \
         glibc-langpack-en glibc-langpack-zh \
         iproute iputils bind-utils \
