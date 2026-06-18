@@ -45,11 +45,11 @@ jobs:
           echo "验证必要文件"
           echo "=========================================="
           
-          if [ ! -f "Dockerfile.rockybase" ]; then
-              echo "❌ 错误: Dockerfile.rockybase 不存在"
+          if [ ! -f "Dockerfile.rocky10prodbase" ]; then
+              echo "❌ 错误: Dockerfile.rocky10prodbase 不存在"
               exit 1
           fi
-          echo "✅ Dockerfile.rockybase 存在"
+          echo "✅ Dockerfile.rocky10prodbase 存在"
           echo "=========================================="
 
       # ============================================
@@ -63,7 +63,7 @@ jobs:
       # ============================================
       - name: Build Docker image
         run: |
-          docker build -f Dockerfile.rockybase -t rocky10-base:latest .
+          docker build -f Dockerfile.rocky10prodbase -t rocky10prodbase:latest .
 
       # ============================================
       # 6. 保存镜像为 tar.gz
@@ -73,16 +73,16 @@ jobs:
           echo "=========================================="
           echo "保存镜像为 tar.gz"
           echo "=========================================="
-          docker save rocky10-base:latest | gzip > rocky10-base-image.tar.gz
-          ls -lh rocky10-base-image.tar.gz
+          docker save rocky10prodbase:latest | gzip > rocky10prodbase.tar.gz
+          ls -lh rocky10prodbase.tar.gz
           echo "=========================================="
 
 
       - name: 上传为可下载产物
         uses: actions/upload-artifact@v4
         with:
-          name: rocky10-base
-          path: rocky10-base-image.tar.gz
+          name: rocky10prodbase
+          path: rocky10prodbase.tar.gz
 
       - name: 生成直接下载链接
         run: |
