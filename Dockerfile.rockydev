@@ -1,70 +1,105 @@
 FROM rockylinux/rockylinux:10
 
-# 统一一次性安装所有依赖，含强制需求：中文、telnet、sshd
+# 批量统一安装所有依赖，安装后深度清理瘦身
 RUN dnf clean all && dnf makecache && \
     dnf install -y epel-release && dnf makecache && \
     dnf install -y \
-        # 基础工具
         git dos2unix tar gzip curl vim less procps-ng iproute iputils \
         openssh-clients openssh-server telnet \
-        # Python开发套件
         python3 python3-pip python3-devel \
-        # C/C++ 完整编译工具链
         "@Development Tools" gcc gcc-c++ autoconf automake libtool \
         ncurses-devel libpcap readline-devel libstdc++ libgcc \
-        # code-server 运行依赖
         nodejs npm openssl-devel \
-        # 强制中文+英文语言包
         glibc-langpack-en glibc-langpack-zh && \
-    # 深度清理，瘦身核心操作
     dnf clean all && \
     rm -rf /var/cache/dnf /usr/share/doc /usr/share/man /tmp/*
 
-# 语言环境中文UTF-8
+# 全局语言中文UTF-8
 ENV LANG=zh_CN.UTF-8
 ENV LC_ALL=zh_CN.UTF-8
 
-# 预编译二进制CMake，不源码编译，体积更小
-RUN curl -L -o cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v3.31.3/cmake-3.31.3-linux-x86_64.tar.gz && \
+# 自动拉取 GitHub 最新稳定 CMake 二进制包
+RUN curl -fsSL https://api.github.com/repos/Kitware/CMake/releases/latest | grep -o '"tag_name": "v[^"]*"' | cut -d'"' -f4 > /tmp/cmake_ver && \
+    CM_VER=$(cat /tmp/cmake_ver) && \
+    curl -L -o cmake.tar.gz https://github.com/Kitware/CMake/releases/download/${CM_VER}/cmake-${CM_VER#v}-linux-x86_64.tar.gz && \
     tar -zxf cmake.tar.gz -C /usr/local/ && \
-    mv /usr/local/cmake-3.31.3-linux-x86_64 /usr/local/cmake && \
-    rm -f cmake.tar.gz
+    mv /usr/local/cmake-${CM_VER#v}-linux-x86_64 /usr/local/cmake && \
+    rm -f cmake.tar.gz /tmp/cmake_ver
 ENV PATH="/usr/local/cmake/bin:${PATH}"
 
-# SSH免主机校验配置
+# SSH 免主机校验配置
 RUN mkdir -p /root/.ssh && \
     echo "StrictHostKeyChecking no" >> /root/.ssh/config && \
     chmod 600 /root/.ssh/config
 
-# python/pip别名
+# python / pip 全局别名
 RUN echo "alias python=python3" >> /root/.bashrc && \
     echo "alias pip=pip3" >> /root/.bashrc
 
-# 安装 code-server 网页版VSCode
+# ========== host网络专用：动态SSH端口启动脚本 ==========
+RUN echo '#!/bin/bash' > /usr/local/bin/start_sshd.sh && \
+    echo 'SSH_LISTEN=${SSH_PORT:-2222}' >> /usr/local/bin/start_sshd.sh && \
+    echo 'sed -i "s/^#Port 22/Port ${SSH_LISTEN}/" /etc/ssh/sshd_config' >> /usr/local/bin/start_sshd.sh && \
+    echo 'exec /usr/sbin/sshd -D' >> /usr/local/bin/start_sshd.sh && \
+    chmod +x /usr/local/bin/start_sshd.sh
+
+# ========== code-server 动态网页端口环境变量 ==========
+ENV CODE_PORT=8081
+ENV PASSWORD=""
+ENV CODE_SERVER_ARGS="--auth none --bind-addr 0.0.0.0:${CODE_PORT}"
+
+# 安装最新版 code-server
 RUN curl -fsSL https://code-server.dev/install.sh | sh
 
-# 仅预安装Python/C++/CMake刚需插件，无多余扩展
+# 固化 VSCode 全局用户配置（永久写入镜像）
+RUN mkdir -p /root/.local/share/code-server/User
+RUN cat > /root/.local/share/code-server/User/settings.json <<EOF
+{
+    "locale": "zh-cn",
+    "editor.fontSize": 14,
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "editor.formatOnSave": true,
+    "files.encoding": "utf8",
+    "files.eol": "\\n",
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "C_Cpp.default.compilerPath": "/usr/bin/g++",
+    "C_Cpp.intelliSenseEngine": "default",
+    "cmake.sourceDirectory": "\${workspaceFolder}",
+    "cmake.buildDirectory": "\${workspaceFolder}/build",
+    "cmake.generator": "Unix Makefiles",
+    "python.defaultInterpreterPath": "/usr/bin/python3",
+    "python.formatting.provider": "autopep8",
+    "python.analysis.autoImportCompletions": true,
+    "extensions.ignoreRecommendations": true,
+    "workbench.startupEditor": "none"
+}
+EOF
+RUN cat > /root/.local/share/code-server/User/keybindings.json <<EOF
+[
+    {
+        "key": "ctrl+shift+b",
+        "command": "cmake.build"
+    }
+]
+EOF
+
+# 预安装Python/C++/CMake固定插件
 RUN code-server --install-extension ms-python.python && \
     code-server --install-extension ms-vscode.cpptools && \
     code-server --install-extension ms-vscode.cmake-tools && \
     code-server --install-extension twxs.cmake
 
-# Python开发依赖，安装后清空pip缓存
+# Python开发依赖，安装后清理pip缓存瘦身
 RUN pip3 install --upgrade pip && \
-    pip3 install pybind11 debugpy numpy ipython && \
+    pip3 install pybind11 debugpy numpy ipython autopep8 && \
     rm -rf /root/.cache/pip
 
-# code-server 内网免密访问，公网部署需自行设置PASSWORD环境变量
-ENV PASSWORD=""
-ENV CODE_SERVER_ARGS="--auth none --bind-addr 0.0.0.0:8080"
-
-# 开放端口：SSH 22 + code-server 8080
-EXPOSE 22 8080
-
-# 配置SSH服务开机自启（适配Remote-SSH远程连接）
+# 开放端口标识（仅标注，host模式映射无效，仅作文档）
+EXPOSE 22 8080 8081-8099
+# SSH服务开机自启
 RUN systemctl enable sshd
 
 WORKDIR /workspace
-
-# 默认启动网页VSCode；如需使用SSH远程开发，前台启动sshd替换CMD即可
+# 默认启动网页版VSCode
 CMD ["code-server", "${CODE_SERVER_ARGS}"]
