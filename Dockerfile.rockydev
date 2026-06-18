@@ -1,0 +1,70 @@
+FROM rockylinux/rockylinux:10
+
+# 统一一次性安装所有依赖，含强制需求：中文、telnet、sshd
+RUN dnf clean all && dnf makecache && \
+    dnf install -y epel-release && dnf makecache && \
+    dnf install -y \
+        # 基础工具
+        git dos2unix tar gzip curl vim less procps-ng iproute iputils \
+        openssh-clients openssh-server telnet \
+        # Python开发套件
+        python3 python3-pip python3-devel \
+        # C/C++ 完整编译工具链
+        "@Development Tools" gcc gcc-c++ autoconf automake libtool \
+        ncurses-devel libpcap readline-devel libstdc++ libgcc \
+        # code-server 运行依赖
+        nodejs npm openssl-devel \
+        # 强制中文+英文语言包
+        glibc-langpack-en glibc-langpack-zh && \
+    # 深度清理，瘦身核心操作
+    dnf clean all && \
+    rm -rf /var/cache/dnf /usr/share/doc /usr/share/man /tmp/*
+
+# 语言环境中文UTF-8
+ENV LANG=zh_CN.UTF-8
+ENV LC_ALL=zh_CN.UTF-8
+
+# 预编译二进制CMake，不源码编译，体积更小
+RUN curl -L -o cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v3.31.3/cmake-3.31.3-linux-x86_64.tar.gz && \
+    tar -zxf cmake.tar.gz -C /usr/local/ && \
+    mv /usr/local/cmake-3.31.3-linux-x86_64 /usr/local/cmake && \
+    rm -f cmake.tar.gz
+ENV PATH="/usr/local/cmake/bin:${PATH}"
+
+# SSH免主机校验配置
+RUN mkdir -p /root/.ssh && \
+    echo "StrictHostKeyChecking no" >> /root/.ssh/config && \
+    chmod 600 /root/.ssh/config
+
+# python/pip别名
+RUN echo "alias python=python3" >> /root/.bashrc && \
+    echo "alias pip=pip3" >> /root/.bashrc
+
+# 安装 code-server 网页版VSCode
+RUN curl -fsSL https://code-server.dev/install.sh | sh
+
+# 仅预安装Python/C++/CMake刚需插件，无多余扩展
+RUN code-server --install-extension ms-python.python && \
+    code-server --install-extension ms-vscode.cpptools && \
+    code-server --install-extension ms-vscode.cmake-tools && \
+    code-server --install-extension twxs.cmake
+
+# Python开发依赖，安装后清空pip缓存
+RUN pip3 install --upgrade pip && \
+    pip3 install pybind11 debugpy numpy ipython && \
+    rm -rf /root/.cache/pip
+
+# code-server 内网免密访问，公网部署需自行设置PASSWORD环境变量
+ENV PASSWORD=""
+ENV CODE_SERVER_ARGS="--auth none --bind-addr 0.0.0.0:8080"
+
+# 开放端口：SSH 22 + code-server 8080
+EXPOSE 22 8080
+
+# 配置SSH服务开机自启（适配Remote-SSH远程连接）
+RUN systemctl enable sshd
+
+WORKDIR /workspace
+
+# 默认启动网页VSCode；如需使用SSH远程开发，前台启动sshd替换CMD即可
+CMD ["code-server", "${CODE_SERVER_ARGS}"]
