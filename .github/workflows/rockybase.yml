@@ -45,11 +45,11 @@ jobs:
           echo "验证必要文件"
           echo "=========================================="
           
-          if [ ! -f "Dockerfile.rockylinux" ]; then
-              echo "❌ 错误: Dockerfile.rockylinux 不存在"
+          if [ ! -f "Dockerfile.rockybase" ]; then
+              echo "❌ 错误: Dockerfile.rockybase 不存在"
               exit 1
           fi
-          echo "✅ Dockerfile.rockylinux 存在"
+          echo "✅ Dockerfile.rockybase 存在"
           echo "=========================================="
 
       # ============================================
@@ -63,7 +63,7 @@ jobs:
       # ============================================
       - name: Build Docker image
         run: |
-          docker build -f Dockerfile.rockylinux -t rocky10-base:latest .
+          docker build -f Dockerfile.rockybase -t rocky10-base:latest .
 
       # ============================================
       # 6. 保存镜像为 tar.gz
