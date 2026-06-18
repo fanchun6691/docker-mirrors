@@ -1,6 +1,6 @@
 FROM rockylinux/rockylinux:10
 
-# 批量统一安装所有依赖，安装后深度清理瘦身
+# 1. 一次性全量安装依赖 + 深度清理所有缓存、文档、临时文件
 RUN dnf clean all && dnf makecache && \
     dnf install -y epel-release && dnf makecache && \
     dnf install -y \
@@ -11,49 +11,39 @@ RUN dnf clean all && dnf makecache && \
         ncurses-devel libpcap readline-devel libstdc++ libgcc \
         nodejs npm openssl-devel \
         glibc-langpack-en glibc-langpack-zh && \
+    # 深度瘦身清理
     dnf clean all && \
-    rm -rf /var/cache/dnf /usr/share/doc /usr/share/man /tmp/*
+    rm -rf /var/cache/dnf /usr/share/doc /usr/share/man /tmp/* /var/log/*
 
-# 全局语言中文UTF-8
+# 语言环境
 ENV LANG=zh_CN.UTF-8
 ENV LC_ALL=zh_CN.UTF-8
 
-# 自动拉取 GitHub 最新稳定 CMake 二进制包
+# 2. 同层下载+解压+清理CMake安装包，不残留压缩包与临时版本文件
 RUN curl -fsSL https://api.github.com/repos/Kitware/CMake/releases/latest | grep -o '"tag_name": "v[^"]*"' | cut -d'"' -f4 > /tmp/cmake_ver && \
     CM_VER=$(cat /tmp/cmake_ver) && \
     curl -L -o cmake.tar.gz https://github.com/Kitware/CMake/releases/download/${CM_VER}/cmake-${CM_VER#v}-linux-x86_64.tar.gz && \
     tar -zxf cmake.tar.gz -C /usr/local/ && \
     mv /usr/local/cmake-${CM_VER#v}-linux-x86_64 /usr/local/cmake && \
-    rm -f cmake.tar.gz /tmp/cmake_ver
+    rm -rf cmake.tar.gz /tmp/cmake_ver
 ENV PATH="/usr/local/cmake/bin:${PATH}"
 
-# SSH 免主机校验配置
-RUN mkdir -p /root/.ssh && \
+# 3. 合并SSH配置、bash别名、sshd动态端口启动脚本 单一层
+RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
+    # ssh config
     echo "StrictHostKeyChecking no" >> /root/.ssh/config && \
-    chmod 600 /root/.ssh/config
-
-# python / pip 全局别名
-RUN echo "alias python=python3" >> /root/.bashrc && \
-    echo "alias pip=pip3" >> /root/.bashrc
-
-# ========== host网络专用：动态SSH端口启动脚本 ==========
-RUN echo '#!/bin/bash' > /usr/local/bin/start_sshd.sh && \
+    chmod 600 /root/.ssh/config && \
+    # python/pip别名
+    echo "alias python=python3" >> /root/.bashrc && \
+    echo "alias pip=pip3" >> /root/.bashrc && \
+    # 动态SSH端口启动脚本
+    echo '#!/bin/bash' > /usr/local/bin/start_sshd.sh && \
     echo 'SSH_LISTEN=${SSH_PORT:-2222}' >> /usr/local/bin/start_sshd.sh && \
     echo 'sed -i "s/^#Port 22/Port ${SSH_LISTEN}/" /etc/ssh/sshd_config' >> /usr/local/bin/start_sshd.sh && \
     echo 'exec /usr/sbin/sshd -D' >> /usr/local/bin/start_sshd.sh && \
-    chmod +x /usr/local/bin/start_sshd.sh
-
-# ========== code-server 动态网页端口环境变量 ==========
-ENV CODE_PORT=8081
-ENV PASSWORD=""
-ENV CODE_SERVER_ARGS="--auth none --bind-addr 0.0.0.0:${CODE_PORT}"
-
-# 安装最新版 code-server
-RUN curl -fsSL https://code-server.dev/install.sh | sh
-
-# 固化 VSCode 全局用户配置（永久写入镜像）
-RUN mkdir -p /root/.local/share/code-server/User
-RUN cat > /root/.local/share/code-server/User/settings.json <<EOF
+    chmod +x /usr/local/bin/start_sshd.sh && \
+    # 写入VSCode settings.json
+    cat > /root/.local/share/code-server/User/settings.json <<EOF
 {
     "locale": "zh-cn",
     "editor.fontSize": 14,
@@ -74,8 +64,9 @@ RUN cat > /root/.local/share/code-server/User/settings.json <<EOF
     "extensions.ignoreRecommendations": true,
     "workbench.startupEditor": "none"
 }
-EOF
-RUN cat > /root/.local/share/code-server/User/keybindings.json <<EOF
+EOF && \
+    # 写入快捷键
+    cat > /root/.local/share/code-server/User/keybindings.json <<EOF
 [
     {
         "key": "ctrl+shift+b",
@@ -84,22 +75,27 @@ RUN cat > /root/.local/share/code-server/User/keybindings.json <<EOF
 ]
 EOF
 
-# 预安装Python/C++/CMake固定插件
-RUN code-server --install-extension ms-python.python && \
+# code-server 动态端口环境变量
+ENV CODE_PORT=8081
+ENV PASSWORD=""
+ENV CODE_SERVER_ARGS="--auth none --bind-addr 0.0.0.0:${CODE_PORT}"
+
+# 4. 安装code-server + 预装插件 + pip依赖 合并一层，同层清理缓存
+RUN curl -fsSL https://code-server.dev/install.sh | sh && \
+    # 预装开发插件
+    code-server --install-extension ms-python.python && \
     code-server --install-extension ms-vscode.cpptools && \
     code-server --install-extension ms-vscode.cmake-tools && \
-    code-server --install-extension twxs.cmake
-
-# Python开发依赖，安装后清理pip缓存瘦身
-RUN pip3 install --upgrade pip && \
+    code-server --install-extension twxs.cmake && \
+    # Python依赖
+    pip3 install --upgrade pip && \
     pip3 install pybind11 debugpy numpy ipython autopep8 && \
-    rm -rf /root/.cache/pip
+    # 清理pip缓存、npm缓存
+    rm -rf /root/.cache/pip /root/.npm /tmp/*
 
-# 开放端口标识（仅标注，host模式映射无效，仅作文档）
-EXPOSE 22 8080 8081-8099
-# SSH服务开机自启
-RUN systemctl enable sshd
+# 仅保留关键端口标注，host网络仅作文档
+EXPOSE 22 8081 8090
 
 WORKDIR /workspace
-# 默认启动网页版VSCode
+# 默认启动网页IDE
 CMD ["code-server", "${CODE_SERVER_ARGS}"]
