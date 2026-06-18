@@ -46,11 +46,11 @@ jobs:
           echo "验证必要文件"
           echo "=========================================="
           
-          if [ ! -f "Dockerfile.rockylinux" ]; then
-              echo "❌ 错误: Dockerfile.rockylinux 不存在"
+          if [ ! -f "Dockerfile.rockydev" ]; then
+              echo "❌ 错误: Dockerfile.rockydev 不存在"
               exit 1
           fi
-          echo "✅ Dockerfile.rockylinux 存在"
+          echo "✅ Dockerfile.rockydev 存在"
           echo "=========================================="
 
       # ============================================
