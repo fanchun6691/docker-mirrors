@@ -1,1 +1,91 @@
 
+name: rockydev Docker Image Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+      # ============================================
+      # 1. 释放 GitHub Runner 空间
+      # ============================================
+      - name: 释放 GitHub 空间
+        run: |
+          echo "=========================================="
+          echo "释放磁盘空间"
+          echo "=========================================="
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/swift
+          sudo docker system prune -af
+          sudo apt-get clean
+          df -h
+          echo "=========================================="
+
+      # ============================================
+      # 2. 检出代码
+      # ============================================
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ============================================
+      # 3. 验证必要文件是否存在
+      # ============================================
+      - name: 验证必要文件
+        run: |
+          echo "=========================================="
+          echo "验证必要文件"
+          echo "=========================================="
+          
+          if [ ! -f "Dockerfile.rockylinux" ]; then
+              echo "❌ 错误: Dockerfile.rockylinux 不存在"
+              exit 1
+          fi
+          echo "✅ Dockerfile.rockylinux 存在"
+          echo "=========================================="
+
+      # ============================================
+      # 4. 设置 Docker Buildx
+      # ============================================
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ============================================
+      # 5. 构建 Docker 镜像
+      # ============================================
+      - name: Build Docker image
+        run: |
+          docker build -f Dockerfile.rockydev -t rocky10-dev:latest .
+
+      # ============================================
+      # 6. 保存镜像为 tar.gz
+      # ============================================
+      - name: Save image as tarball
+        run: |
+          echo "=========================================="
+          echo "保存镜像为 tar.gz"
+          echo "=========================================="
+          docker save rocky10-dev:latest | gzip > rocky10-dev-image.tar.gz
+          ls -lh rocky10-dev-image.tar.gz
+          echo "=========================================="
+
+
+      - name: 上传为可下载产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: rocky10-dev
+          path: rocky10-dev-image.tar.gz
+
+      - name: 生成直接下载链接
+        run: |
+          echo "✅ 镜像打包完成！"
+          echo "👉 直接下载：https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/1"
