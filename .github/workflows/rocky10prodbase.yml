@@ -1,4 +1,4 @@
-name: rockybase Docker Image Build
+name: rocky10prodbase Docker Image Build
 
 on:
   workflow_dispatch:
