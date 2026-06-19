@@ -20,8 +20,9 @@ RUN dnf clean all && dnf makecache && \
     dnf clean all && \
     rm -rf /var/cache/dnf /usr/share/doc /usr/share/man /tmp/* /var/log/*
 
-# 全局基础环境变量（语言、code-server、内网Ollama AI配置）
+# 全局基础环境变量（语言、时区、code-server、内网Ollama AI配置）
 ENV \
+    TZ=Asia/Shanghai \
     LANG=zh_CN.UTF-8 \
     LC_ALL=zh_CN.UTF-8 \
     CODE_PORT=8081 \
