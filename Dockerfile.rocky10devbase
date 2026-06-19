@@ -1,6 +1,6 @@
 FROM rockylinux/rockylinux:10
 
-# ====================== 第一层：安装全套依赖 + 深度系统清理瘦身 ======================
+# ====================== 第一层：全套依赖内置cmake，无外网下载 ======================
 RUN dnf clean all && dnf makecache && \
     dnf install -y epel-release && dnf makecache && \
     dnf install -y \
@@ -10,7 +10,8 @@ RUN dnf clean all && dnf makecache && \
         "@Development Tools" gcc gcc-c++ autoconf automake libtool \
         ncurses-devel libpcap readline-devel libstdc++ libgcc \
         nodejs npm openssl-devel \
-        glibc-langpack-en glibc-langpack-zh && \
+        glibc-langpack-en glibc-langpack-zh \
+        cmake cmake-gui && \
     dnf clean all && \
     rm -rf /var/cache/dnf /usr/share/doc /usr/share/man /tmp/* /var/log/*
 
@@ -24,15 +25,7 @@ ENV \
     CODE_SERVER_ARGS="--auth none --bind-addr 0.0.0.0:${CODE_PORT}" \
     OLLAMA_HOST=http://127.0.0.1:11434
 
-# ====================== 第二层：安装固定稳定版 CMake ======================
-RUN curl -L -o cmake.tar.gz https://mirror.ghproxy.com/https://github.com/Kitware/CMake/releases/download/v3.31.3/cmake-3.31.3-linux-x86_64.tar.gz && \
-    tar -zxf cmake.tar.gz -C /usr/local/ && \
-    mv /usr/local/cmake-3.31.3-linux-x86_64 /usr/local/cmake && \
-    rm -rf cmake.tar.gz
-
-ENV PATH="/usr/local/cmake/bin:${PATH}"
-
-# ====================== 第三层：SSH配置、别名、启动脚本、printf写入配置、开启root密码登录 ======================
+# ====================== 第二层：SSH配置、别名、启动脚本、printf写入配置、开启root密码登录 ======================
 RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
     echo "StrictHostKeyChecking no" >> /root/.ssh/config && \
     chmod 600 /root/.ssh/config && \
@@ -43,7 +36,7 @@ RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
     echo 'sed -i "s/^#Port 22/Port ${SSH_LISTEN}/" /etc/ssh/sshd_config' >> /usr/local/bin/start_sshd.sh && \
     echo 'exec /usr/sbin/sshd -D' >> /usr/local/bin/start_sshd.sh && \
     chmod +x /usr/local/bin/start_sshd.sh && \
-    # printf 写入 settings.json，无cat heredoc
+    # printf 写入 settings.json，无cat heredoc，彻底规避EOF报错
     printf '{\
     "locale": "zh-cn",\
     "editor.fontSize": 14,\
@@ -80,9 +73,9 @@ RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
     sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
     echo "Root@123456" | passwd --stdin root
 
-# ====================== 第四层：国内镜像安装 code-server + pip清华源 ======================
+# ====================== 第三层：安装 code-server，pip清华国内源，插件容错 ======================
 RUN set -eux; \
-    curl --connect-timeout 15 --retry 3 -fsSL https://mirror.ghproxy.com/https://raw.githubusercontent.com/coder/code-server/main/install.sh | sh; \
+    curl --connect-timeout 15 --retry 3 -fsSL https://code-server.dev/install.sh | sh; \
     code-server --install-extension ms-python.python || true; \
     code-server --install-extension ms-vscode.cpptools-extension-pack || true; \
     code-server --install-extension ms-vscode.cmake-tools || true; \
