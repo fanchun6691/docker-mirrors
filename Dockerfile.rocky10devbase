@@ -80,9 +80,9 @@ RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
     sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
     echo "Root@123456" | passwd --stdin root
 
-# ====================== 第四层：拆分下载+执行安装脚本，避免管道静默失败 ======================
+# ====================== 第四层：移除ghproxy，原生直连raw.githubusercontent ======================
 RUN set -eux; \
-    curl --connect-timeout 15 --retry 3 -fsSL https://mirror.ghproxy.com/https://raw.githubusercontent.com/coder/code-server/main/install.sh -o /tmp/code-install.sh; \
+    curl --connect-timeout 15 --retry 3 -fsSL https://raw.githubusercontent.com/coder/code-server/main/install.sh -o /tmp/code-install.sh; \
     chmod +x /tmp/code-install.sh; \
     sh /tmp/code-install.sh; \
     code-server --install-extension ms-python.python; \
