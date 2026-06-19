@@ -1,26 +1,20 @@
 FROM rockylinux/rockylinux:10
 
-# ====================== 第一层：统一安装全部依赖 + 深度系统瘦身清理 ======================
+# ====================== 第一层：安装全套依赖 + 深度系统清理瘦身 ======================
 RUN dnf clean all && dnf makecache && \
     dnf install -y epel-release && dnf makecache && \
     dnf install -y \
-        # 基础工具
         git dos2unix tar gzip curl vim less procps-ng iproute iputils \
         openssh-clients openssh-server telnet \
-        # Python 开发环境
         python3 python3-pip python3-devel \
-        # C/C++ 完整编译工具链
         "@Development Tools" gcc gcc-c++ autoconf automake libtool \
         ncurses-devel libpcap readline-devel libstdc++ libgcc \
-        # code-server 运行依赖
         nodejs npm openssl-devel \
-        # 中英文语言包（强制中文）
         glibc-langpack-en glibc-langpack-zh && \
-    # 统一清理：dnf缓存、文档、手册、临时文件、系统日志
     dnf clean all && \
     rm -rf /var/cache/dnf /usr/share/doc /usr/share/man /tmp/* /var/log/*
 
-# 全局基础环境变量（语言、时区、code-server、内网Ollama AI配置）
+# 全局统一环境变量：时区、语言、IDE端口、Ollama内网AI地址
 ENV \
     TZ=Asia/Shanghai \
     LANG=zh_CN.UTF-8 \
@@ -28,33 +22,31 @@ ENV \
     CODE_PORT=8081 \
     PASSWORD="" \
     CODE_SERVER_ARGS="--auth none --bind-addr 0.0.0.0:${CODE_PORT}" \
-    # host网络默认访问宿主机ollama 11434端口，启动容器可覆盖
     OLLAMA_HOST=http://127.0.0.1:11434
 
-# ====================== 第二层：安装固定稳定版 CMake 二进制包 ======================
+# ====================== 第二层：安装固定稳定版 CMake ======================
 RUN curl -L -o cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v3.31.3/cmake-3.31.3-linux-x86_64.tar.gz && \
     tar -zxf cmake.tar.gz -C /usr/local/ && \
     mv /usr/local/cmake-3.31.3-linux-x86_64 /usr/local/cmake && \
     rm -rf cmake.tar.gz
 
-# CMake PATH后置，无法合并至顶部ENV
 ENV PATH="/usr/local/cmake/bin:${PATH}"
 
-# ====================== 第三层：SSH配置、别名、动态SSH启动脚本、VSCode固化配置、开启密码登录 ======================
+# ====================== 第三层：SSH配置、别名、启动脚本、VSCode固化配置、开启root密码登录 ======================
 RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
-    # SSH 关闭主机校验提示
+    # SSH 关闭主机密钥校验提示
     echo "StrictHostKeyChecking no" >> /root/.ssh/config && \
     chmod 600 /root/.ssh/config && \
     # python / pip 全局别名
     echo "alias python=python3" >> /root/.bashrc && \
     echo "alias pip=pip3" >> /root/.bashrc && \
-    # host网络专用动态SSH端口启动脚本
+    # host网络动态SSH端口启动脚本
     echo '#!/bin/bash' > /usr/local/bin/start_sshd.sh && \
     echo 'SSH_LISTEN=${SSH_PORT:-2222}' >> /usr/local/bin/start_sshd.sh && \
     echo 'sed -i "s/^#Port 22/Port ${SSH_LISTEN}/" /etc/ssh/sshd_config' >> /usr/local/bin/start_sshd.sh && \
     echo 'exec /usr/sbin/sshd -D' >> /usr/local/bin/start_sshd.sh && \
     chmod +x /usr/local/bin/start_sshd.sh && \
-    # 固化 VSCode 全局配置，完整 Continue AI + Ollama 绑定
+    # 写入VSCode主配置 settings.json
     cat > /root/.local/share/code-server/User/settings.json <<EOF
 {
     "locale": "zh-cn",
@@ -83,7 +75,7 @@ RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
     "continue.indexingEnabled": true
 }
 EOF && \
-    # 固化快捷键：Ctrl+Shift+B 一键 CMake 构建
+    # 写入快捷键配置 keybindings.json
     cat > /root/.local/share/code-server/User/keybindings.json <<EOF
 [
     {
@@ -92,29 +84,25 @@ EOF && \
     }
 ]
 EOF && \
-    # 开启 root SSH 密码登录，默认密码 Root@123456
+    # 开启SSH root密码登录，默认密码 Root@123456
     sed -i 's/^PermitRootLogin no/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
     echo "Root@123456" | passwd --stdin root
 
-# ====================== 第四层：安装 code-server + 开发插件 + Continue AI插件 + Python依赖 + 缓存清理 ======================
+# ====================== 第四层：安装code-server、开发插件、Continue AI、Python依赖并清理缓存 ======================
 RUN curl -fsSL https://code-server.dev/install.sh | sh && \
-    # 基础开发插件
     code-server --install-extension ms-python.python && \
     code-server --install-extension ms-vscode.cpptools-extension-pack && \
     code-server --install-extension ms-vscode.cmake-tools && \
     code-server --install-extension twxs.cmake && \
-    # 仅保留 Continue AI 插件
     code-server --install-extension continue.continue && \
-    # Python 调试、编译、格式化依赖
     pip3 install --upgrade pip pybind11 debugpy numpy ipython autopep8 && \
-    # 清理 npm / pip 缓存瘦身
     rm -rf /root/.cache/pip /root/.npm /tmp/*
 
-# 端口文档标注，host网络无端口映射作用
+# 端口仅文档标记，host网络不生效
 EXPOSE 22 8081 11434
 
 WORKDIR /workspace
 
-# 默认启动网页版 VSCode
+# 默认启动网页版VSCode
 CMD ["code-server", "${CODE_SERVER_ARGS}"]
