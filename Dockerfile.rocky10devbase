@@ -49,42 +49,45 @@ RUN set -eux; \
     echo 'sed -i "s/^#Port 22/Port ${SSH_LISTEN}/" /etc/ssh/sshd_config' >> /usr/local/bin/start_sshd.sh && \
     echo 'exec /usr/sbin/sshd -D' >> /usr/local/bin/start_sshd.sh && \
     chmod +x /usr/local/bin/start_sshd.sh && \
-    # 修复printf %s格式化冲突，管道sed替换，消除shell字符串解析报错
-    printf '{\
-    "locale": "zh-cn",\
-    "editor.fontSize": 14,\
-    "editor.tabSize": 4,\
-    "editor.insertSpaces": true,\
-    "editor.formatOnSave": true,\
-    "files.encoding": "utf8",\
-    "files.eol": "\\n",\
-    "terminal.integrated.defaultProfile.linux": "bash",\
-    "C_Cpp.default.compilerPath": "/usr/bin/g++",\
-    "C_Cpp.intelliSenseEngine": "default",\
-    "cmake.sourceDirectory": "${workspaceFolder}",\
-    "cmake.buildDirectory": "${workspaceFolder}/build",\
-    "cmake.generator": "Unix Makefiles",\
-    "python.defaultInterpreterPath": "/usr/bin/python3",\
-    "python.formatting.provider": "autopep8",\
-    "python.analysis.autoImportCompletions": true,\
-    "extensions.ignoreRecommendations": true,\
-    "workbench.startupEditor": "none",\
-    "continue.defaultModel": "qwen",\
-    "continue.ollama.baseUrl": "%s",\
-    "continue.autoCompleteEnabled": true,\
-    "continue.suggestionsEnabled": true,\
-    "continue.chatShortcut": "ctrl+l",\
-    "continue.indexingEnabled": true\
-}\n' | sed "s|%s|${OLLAMA_HOST}|g" > /root/.local/share/code-server/User/settings.json && \
-    # printf 写入 keybindings.json
+    # 修复printf %s格式化冲突，管道sed替换，消除shell字符串解析报错（仅优化转义，配置内容完全不变）
+    cat <<'EOF' | sed "s|%s|${OLLAMA_HOST}|g" > /root/.local/share/code-server/User/settings.json
+{
+    "locale": "zh-cn",
+    "editor.fontSize": 14,
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "editor.formatOnSave": true,
+    "files.encoding": "utf8",
+    "files.eol": "\n",
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "C_Cpp.default.compilerPath": "/usr/bin/g++",
+    "C_Cpp.intelliSenseEngine": "default",
+    "cmake.sourceDirectory": "${workspaceFolder}",
+    "cmake.buildDirectory": "${workspaceFolder}/build",
+    "cmake.generator": "Unix Makefiles",
+    "python.defaultInterpreterPath": "/usr/bin/python3",
+    "python.formatting.provider": "autopep8",
+    "python.analysis.autoImportCompletions": true,
+    "extensions.ignoreRecommendations": true,
+    "workbench.startupEditor": "none",
+    "continue.defaultModel": "qwen",
+    "continue.ollama.baseUrl": "%s",
+    "continue.autoCompleteEnabled": true,
+    "continue.suggestionsEnabled": true,
+    "continue.chatShortcut": "ctrl+l",
+    "continue.indexingEnabled": true
+}
+EOF
+    # printf 写入 keybindings.json，无改动仅保留
     printf '[{\
     "key": "ctrl+shift+b",\
     "command": "cmake.build"\
 }]\n' > /root/.local/share/code-server/User/keybindings.json && \
-    # 开启SSH root密码登录
+    # 开启SSH root密码登录配置不变
     sed -i 's/^PermitRootLogin no/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
-    echo "Root@123456" | passwd --stdin root
+    # 【改动1】密码逻辑：优先使用环境变量PASSWORD，空则使用兜底密码Root@123456
+    ROOT_PWD=${PASSWORD:-Root@123456}; echo "${ROOT_PWD}" | passwd --stdin root
 
 # ====================== 第四层：安装 code-server + 开发插件 + Python依赖 + 缓存清理 ======================
 RUN set -eux; \
