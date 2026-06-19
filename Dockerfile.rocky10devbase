@@ -1,7 +1,8 @@
 FROM rockylinux/rockylinux:10
 
 # ====================== 第一层：安装全套依赖 + 深度系统清理瘦身 ======================
-RUN dnf clean all && dnf makecache && \
+RUN set -eux; \
+    dnf clean all && dnf makecache && \
     dnf install -y epel-release && dnf makecache && \
     dnf install -y \
         git dos2unix tar gzip curl vim less procps-ng iproute iputils \
@@ -22,11 +23,13 @@ ENV \
     LC_ALL=zh_CN.UTF-8 \
     CODE_PORT=8081 \
     PASSWORD="" \
-    CODE_SERVER_ARGS="--auth none --bind-addr 0.0.0.0:${CODE_PORT}" \
+    SSH_PORT=2222 \
+    CODE_SERVER_BIND="0.0.0.0:${CODE_PORT}" \
     OLLAMA_HOST=http://127.0.0.1:11434
 
 # ====================== 第二层：安装固定稳定版 CMake（保持直连github不变） ======================
-RUN curl -L -o cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v3.31.3/cmake-3.31.3-linux-x86_64.tar.gz && \
+RUN set -eux; \
+    curl --connect-timeout 15 --retry 3 -L -o cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v3.31.3/cmake-3.31.3-linux-x86_64.tar.gz && \
     tar -zxf cmake.tar.gz -C /usr/local/ && \
     mv /usr/local/cmake-3.31.3-linux-x86_64 /usr/local/cmake && \
     rm -rf cmake.tar.gz
@@ -34,7 +37,9 @@ RUN curl -L -o cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v
 ENV PATH="/usr/local/cmake/bin:${PATH}"
 
 # ====================== 第三层：SSH配置、别名、启动脚本、printf写入配置、开启root密码登录 ======================
-RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
+RUN set -eux; \
+    mkdir -p /root/.ssh /root/.local/share/code-server/User && \
+    chmod 700 /root/.ssh /root/.local/share/code-server && \
     echo "StrictHostKeyChecking no" >> /root/.ssh/config && \
     chmod 600 /root/.ssh/config && \
     echo "alias python=python3" >> /root/.bashrc && \
@@ -44,7 +49,7 @@ RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
     echo 'sed -i "s/^#Port 22/Port ${SSH_LISTEN}/" /etc/ssh/sshd_config' >> /usr/local/bin/start_sshd.sh && \
     echo 'exec /usr/sbin/sshd -D' >> /usr/local/bin/start_sshd.sh && \
     chmod +x /usr/local/bin/start_sshd.sh && \
-    # printf 写入 settings.json，无cat heredoc
+    # 修复printf %s格式化冲突，管道sed替换，消除shell字符串解析报错
     printf '{\
     "locale": "zh-cn",\
     "editor.fontSize": 14,\
@@ -52,7 +57,7 @@ RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
     "editor.insertSpaces": true,\
     "editor.formatOnSave": true,\
     "files.encoding": "utf8",\
-    "files.eol": "\\\\n",\
+    "files.eol": "\\n",\
     "terminal.integrated.defaultProfile.linux": "bash",\
     "C_Cpp.default.compilerPath": "/usr/bin/g++",\
     "C_Cpp.intelliSenseEngine": "default",\
@@ -70,7 +75,7 @@ RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
     "continue.suggestionsEnabled": true,\
     "continue.chatShortcut": "ctrl+l",\
     "continue.indexingEnabled": true\
-}\n' "${OLLAMA_HOST}" > /root/.local/share/code-server/User/settings.json && \
+}\n' | sed "s|%s|${OLLAMA_HOST}|g" > /root/.local/share/code-server/User/settings.json && \
     # printf 写入 keybindings.json
     printf '[{\
     "key": "ctrl+shift+b",\
@@ -100,10 +105,12 @@ RUN set -eux; \
     pip3 install --upgrade pip pybind11 debugpy numpy ipython autopep8 && \
     \
     # 4. 全局临时文件缓存清理
-    rm -rf /root/.cache/pip /root/.npm /tmp/*
+    rm -rf /root/.cache/pip /root/.npm /tmp/* /tmp/code-install.sh
 
-EXPOSE 22 8081 11434
+# 移除无用11434端口暴露，仅保留ssh、code-server端口
+EXPOSE 2222 8081
 
 WORKDIR /workspace
 
-CMD ["code-server", "${CODE_SERVER_ARGS}"]
+# 修复：CMD数组无法解析变量，改用shell形式加载环境变量；原--auth none兼容PASSWORD空变量
+CMD ["sh", "-c", "code-server --auth none --bind-addr 0.0.0.0:${CODE_PORT}"]
