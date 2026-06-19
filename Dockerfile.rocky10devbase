@@ -34,20 +34,17 @@ ENV PATH="/usr/local/cmake/bin:${PATH}"
 
 # ====================== 第三层：SSH配置、别名、启动脚本、VSCode固化配置、开启root密码登录 ======================
 RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
-    # SSH 关闭主机密钥校验提示
     echo "StrictHostKeyChecking no" >> /root/.ssh/config && \
     chmod 600 /root/.ssh/config && \
-    # python / pip 全局别名
     echo "alias python=python3" >> /root/.bashrc && \
     echo "alias pip=pip3" >> /root/.bashrc && \
-    # host网络动态SSH端口启动脚本
     echo '#!/bin/bash' > /usr/local/bin/start_sshd.sh && \
     echo 'SSH_LISTEN=${SSH_PORT:-2222}' >> /usr/local/bin/start_sshd.sh && \
     echo 'sed -i "s/^#Port 22/Port ${SSH_LISTEN}/" /etc/ssh/sshd_config' >> /usr/local/bin/start_sshd.sh && \
     echo 'exec /usr/sbin/sshd -D' >> /usr/local/bin/start_sshd.sh && \
     chmod +x /usr/local/bin/start_sshd.sh && \
-    # 写入VSCode主配置 settings.json
-    cat > /root/.local/share/code-server/User/settings.json <<EOF
+    # 写入settings.json
+    cat > /root/.local/share/code-server/User/settings.json <<'EOF'
 {
     "locale": "zh-cn",
     "editor.fontSize": 14,
@@ -59,8 +56,8 @@ RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
     "terminal.integrated.defaultProfile.linux": "bash",
     "C_Cpp.default.compilerPath": "/usr/bin/g++",
     "C_Cpp.intelliSenseEngine": "default",
-    "cmake.sourceDirectory": "\${workspaceFolder}",
-    "cmake.buildDirectory": "\${workspaceFolder}/build",
+    "cmake.sourceDirectory": "${workspaceFolder}",
+    "cmake.buildDirectory": "${workspaceFolder}/build",
     "cmake.generator": "Unix Makefiles",
     "python.defaultInterpreterPath": "/usr/bin/python3",
     "python.formatting.provider": "autopep8",
@@ -74,18 +71,16 @@ RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
     "continue.chatShortcut": "ctrl+l",
     "continue.indexingEnabled": true
 }
-EOF && \
-    # 写入快捷键配置 keybindings.json
-    cat > /root/.local/share/code-server/User/keybindings.json <<EOF
+EOF
+RUN cat > /root/.local/share/code-server/User/keybindings.json <<'EOF'
 [
     {
         "key": "ctrl+shift+b",
         "command": "cmake.build"
     }
 ]
-EOF && \
-    # 开启SSH root密码登录，默认密码 Root@123456
-    sed -i 's/^PermitRootLogin no/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+EOF
+RUN sed -i 's/^PermitRootLogin no/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
     echo "Root@123456" | passwd --stdin root
 
@@ -99,10 +94,8 @@ RUN curl -fsSL https://code-server.dev/install.sh | sh && \
     pip3 install --upgrade pip pybind11 debugpy numpy ipython autopep8 && \
     rm -rf /root/.cache/pip /root/.npm /tmp/*
 
-# 端口仅文档标记，host网络不生效
 EXPOSE 22 8081 11434
 
 WORKDIR /workspace
 
-# 默认启动网页版VSCode
 CMD ["code-server", "${CODE_SERVER_ARGS}"]
