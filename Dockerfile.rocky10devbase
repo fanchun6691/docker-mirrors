@@ -25,28 +25,25 @@ ENV \
     OLLAMA_HOST=http://127.0.0.1:11434
 
 # ====================== 第二层：安装固定稳定版 CMake ======================
-RUN curl -L -o cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v3.31.3/cmake-3.31.3-linux-x86_64.tar.gz && \
+RUN curl -L -o cmake.tar.gz https://mirror.ghproxy.com/https://github.com/Kitware/CMake/releases/download/v3.31.3/cmake-3.31.3-linux-x86_64.tar.gz && \
     tar -zxf cmake.tar.gz -C /usr/local/ && \
     mv /usr/local/cmake-3.31.3-linux-x86_64 /usr/local/cmake && \
     rm -rf cmake.tar.gz
 
 ENV PATH="/usr/local/cmake/bin:${PATH}"
 
-# ====================== 第三层：SSH配置、别名、启动脚本、VSCode固化配置、开启root密码登录 ======================
+# ====================== 第三层：SSH配置、别名、启动脚本、printf写入配置、开启root密码登录 ======================
 RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
-    # SSH 关闭主机密钥校验提示
     echo "StrictHostKeyChecking no" >> /root/.ssh/config && \
     chmod 600 /root/.ssh/config && \
-    # python / pip 全局别名
     echo "alias python=python3" >> /root/.bashrc && \
     echo "alias pip=pip3" >> /root/.bashrc && \
-    # host网络动态SSH端口启动脚本
     echo '#!/bin/bash' > /usr/local/bin/start_sshd.sh && \
     echo 'SSH_LISTEN=${SSH_PORT:-2222}' >> /usr/local/bin/start_sshd.sh && \
     echo 'sed -i "s/^#Port 22/Port ${SSH_LISTEN}/" /etc/ssh/sshd_config' >> /usr/local/bin/start_sshd.sh && \
     echo 'exec /usr/sbin/sshd -D' >> /usr/local/bin/start_sshd.sh && \
     chmod +x /usr/local/bin/start_sshd.sh && \
-    # printf 写入 settings.json
+    # printf 写入 settings.json，无cat heredoc
     printf '{\
     "locale": "zh-cn",\
     "editor.fontSize": 14,\
@@ -78,19 +75,21 @@ RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
     "key": "ctrl+shift+b",\
     "command": "cmake.build"\
 }]\n' > /root/.local/share/code-server/User/keybindings.json && \
-    # 开启SSH root密码登录，默认密码 Root@123456
+    # 开启SSH root密码登录
     sed -i 's/^PermitRootLogin no/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
     echo "Root@123456" | passwd --stdin root
 
-# ====================== 第四层：安装code-server、开发插件、Continue AI、Python依赖并清理缓存 ======================
-RUN curl -fsSL https://code-server.dev/install.sh | sh && \
-    code-server --install-extension ms-python.python && \
-    code-server --install-extension ms-vscode.cpptools-extension-pack && \
-    code-server --install-extension ms-vscode.cmake-tools && \
-    code-server --install-extension twxs.cmake && \
-    code-server --install-extension continue.continue && \
-    pip3 install --upgrade pip pybind11 debugpy numpy ipython autopep8 && \
+# ====================== 第四层：国内镜像安装 code-server + pip清华源 ======================
+RUN set -eux; \
+    curl --connect-timeout 15 --retry 3 -fsSL https://mirror.ghproxy.com/https://raw.githubusercontent.com/coder/code-server/main/install.sh | sh; \
+    code-server --install-extension ms-python.python || true; \
+    code-server --install-extension ms-vscode.cpptools-extension-pack || true; \
+    code-server --install-extension ms-vscode.cmake-tools || true; \
+    code-server --install-extension twxs.cmake || true; \
+    code-server --install-extension continue.continue || true; \
+    pip3 config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple; \
+    pip3 install --upgrade pip pybind11 debugpy numpy ipython autopep8; \
     rm -rf /root/.cache/pip /root/.npm /tmp/*
 
 EXPOSE 22 8081 11434
