@@ -74,7 +74,6 @@ RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
     "python.analysis.autoImportCompletions": true,
     "extensions.ignoreRecommendations": true,
     "workbench.startupEditor": "none",
-    // Continue 本地Ollama完整配置
     "continue.defaultModel": "qwen",
     "continue.ollama.baseUrl": "${OLLAMA_HOST}",
     "continue.autoCompleteEnabled": true,
