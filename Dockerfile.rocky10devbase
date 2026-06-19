@@ -81,21 +81,21 @@ RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
     sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
     echo "Root@123456" | passwd --stdin root
 
-# ====================== 第四层：安装 code-server + 开发插件 + Python依赖 + 缓存清理 ======================
+# ====================== 第四层：安装 code-server + 开发插件 + 国内CDN离线cpptools + Python依赖 + 缓存清理 ======================
 RUN set -eux; \
-    # 1. 下载并安装 code-server
+    # 1. 下载并安装 code-server（直连raw，无ghproxy）
     curl --connect-timeout 15 --retry 3 -fsSL https://raw.githubusercontent.com/coder/code-server/main/install.sh -o /tmp/code-install.sh && \
     chmod +x /tmp/code-install.sh && \
     sh /tmp/code-install.sh && \
     \
-    # 2. 安装普通插件 (Python, CMake, Continue)
+    # 2. 安装在线可正常拉取的插件 (Python, CMake, Continue)
     code-server --install-extension ms-python.python && \
     code-server --install-extension ms-vscode.cmake-tools && \
     code-server --install-extension twxs.cmake && \
     code-server --install-extension continue.continue && \
     \
-    # 3. 【修复】ghproxy中转下载cpptools离线包，避免直连市场失效
-    curl --connect-timeout 15 --retry 3 -L -o /tmp/cpptools.vsix https://mirror.ghproxy.com/https://marketplace.visualstudio.com/_apis/public/gallery/publishers/ms-vscode/vsextensions/cpptools/latest/vspackage && \
+    # 3. 微软国内CDN下载Linux x64 cpptools离线包，无ghproxy、DNS稳定
+    curl --connect-timeout 15 --retry 3 -L -o /tmp/cpptools.vsix https://vscode.cdn.azure.cn/v1/gallery/publishers/ms-vscode/vsextensions/cpptools/latest/cpptools-linux-x64.vsix && \
     mkdir -p /root/.local/share/code-server/extensions/ms-vscode.cpptools && \
     unzip -q /tmp/cpptools.vsix -d /root/.local/share/code-server/extensions/ms-vscode.cpptools && \
     mv /root/.local/share/code-server/extensions/ms-vscode.cpptools/extension/* /root/.local/share/code-server/extensions/ms-vscode.cpptools/ && \
@@ -105,7 +105,7 @@ RUN set -eux; \
     pip3 config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
     pip3 install --upgrade pip pybind11 debugpy numpy ipython autopep8 && \
     \
-    # 5. 全局临时文件缓存清理
+    # 5. 全局临时文件缓存全部清理
     rm -rf /root/.cache/pip /root/.npm /tmp/*
 
 EXPOSE 22 8081 11434
