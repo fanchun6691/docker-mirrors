@@ -20,9 +20,15 @@ RUN dnf clean all && dnf makecache && \
     dnf clean all && \
     rm -rf /var/cache/dnf /usr/share/doc /usr/share/man /tmp/* /var/log/*
 
-# 全局中文UTF-8环境变量
-ENV LANG=zh_CN.UTF-8
-ENV LC_ALL=zh_CN.UTF-8
+# 全局基础环境变量（语言、code-server、内网Ollama AI配置）
+ENV \
+    LANG=zh_CN.UTF-8 \
+    LC_ALL=zh_CN.UTF-8 \
+    CODE_PORT=8081 \
+    PASSWORD="" \
+    CODE_SERVER_ARGS="--auth none --bind-addr 0.0.0.0:${CODE_PORT}" \
+    # host网络默认访问宿主机ollama 11434端口，启动容器可覆盖
+    OLLAMA_HOST=http://127.0.0.1:11434
 
 # ====================== 第二层：安装固定稳定版 CMake 二进制包 ======================
 RUN curl -L -o cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v3.31.3/cmake-3.31.3-linux-x86_64.tar.gz && \
@@ -30,6 +36,7 @@ RUN curl -L -o cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v
     mv /usr/local/cmake-3.31.3-linux-x86_64 /usr/local/cmake && \
     rm -rf cmake.tar.gz
 
+# CMake PATH后置，无法合并至顶部ENV
 ENV PATH="/usr/local/cmake/bin:${PATH}"
 
 # ====================== 第三层：SSH配置、别名、动态SSH启动脚本、VSCode固化配置、开启密码登录 ======================
@@ -40,13 +47,13 @@ RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
     # python / pip 全局别名
     echo "alias python=python3" >> /root/.bashrc && \
     echo "alias pip=pip3" >> /root/.bashrc && \
-    # host网络专用：动态SSH端口启动脚本
+    # host网络专用动态SSH端口启动脚本
     echo '#!/bin/bash' > /usr/local/bin/start_sshd.sh && \
     echo 'SSH_LISTEN=${SSH_PORT:-2222}' >> /usr/local/bin/start_sshd.sh && \
     echo 'sed -i "s/^#Port 22/Port ${SSH_LISTEN}/" /etc/ssh/sshd_config' >> /usr/local/bin/start_sshd.sh && \
     echo 'exec /usr/sbin/sshd -D' >> /usr/local/bin/start_sshd.sh && \
     chmod +x /usr/local/bin/start_sshd.sh && \
-    # 固化 VSCode 全局配置 settings.json
+    # 固化 VSCode 全局配置，完整 Continue AI + Ollama 绑定
     cat > /root/.local/share/code-server/User/settings.json <<EOF
 {
     "locale": "zh-cn",
@@ -66,7 +73,14 @@ RUN mkdir -p /root/.ssh /root/.local/share/code-server/User && \
     "python.formatting.provider": "autopep8",
     "python.analysis.autoImportCompletions": true,
     "extensions.ignoreRecommendations": true,
-    "workbench.startupEditor": "none"
+    "workbench.startupEditor": "none",
+    // Continue 本地Ollama完整配置
+    "continue.defaultModel": "qwen",
+    "continue.ollama.baseUrl": "${OLLAMA_HOST}",
+    "continue.autoCompleteEnabled": true,
+    "continue.suggestionsEnabled": true,
+    "continue.chatShortcut": "ctrl+l",
+    "continue.indexingEnabled": true
 }
 EOF && \
     # 固化快捷键：Ctrl+Shift+B 一键 CMake 构建
@@ -83,25 +97,22 @@ EOF && \
     sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
     echo "Root@123456" | passwd --stdin root
 
-# ====================== 第四层：code-server 环境变量 ======================
-ENV CODE_PORT=8081
-ENV PASSWORD=""
-ENV CODE_SERVER_ARGS="--auth none --bind-addr 0.0.0.0:${CODE_PORT}"
-
-# ====================== 第五层：安装 code-server + 全套开发插件 + Python依赖 + 缓存清理 ======================
+# ====================== 第四层：安装 code-server + 开发插件 + Continue AI插件 + Python依赖 + 缓存清理 ======================
 RUN curl -fsSL https://code-server.dev/install.sh | sh && \
-    # 预装开发插件（完整C++扩展包，含语法/调试）
+    # 基础开发插件
     code-server --install-extension ms-python.python && \
     code-server --install-extension ms-vscode.cpptools-extension-pack && \
     code-server --install-extension ms-vscode.cmake-tools && \
     code-server --install-extension twxs.cmake && \
+    # 仅保留 Continue AI 插件
+    code-server --install-extension continue.continue && \
     # Python 调试、编译、格式化依赖
     pip3 install --upgrade pip pybind11 debugpy numpy ipython autopep8 && \
     # 清理 npm / pip 缓存瘦身
     rm -rf /root/.cache/pip /root/.npm /tmp/*
 
-# 端口仅文档标注，host网络模式端口映射不生效
-EXPOSE 22 8081
+# 端口文档标注，host网络无端口映射作用
+EXPOSE 22 8081 11434
 
 WORKDIR /workspace
 
