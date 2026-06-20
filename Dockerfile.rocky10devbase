@@ -12,7 +12,7 @@ RUN set -eux; \
         ncurses-devel libpcap readline-devel libstdc++ libgcc \
         nodejs npm openssl-devel \
         glibc-langpack-en glibc-langpack-zh \
-        unzip && \
+        unzip wqy-zenhei-fonts && \
     dnf clean all && \
     rm -rf /var/cache/dnf /usr/share/doc /usr/share/man /tmp/* /var/log/*
 
@@ -103,6 +103,8 @@ RUN set -eux; \
     code-server --install-extension continue.continue && \
     # 预装中文语言包，配合locale:zh-cn开机自动中文界面
     code-server --install-extension MS-CEINTL.vscode-language-pack-zh-hans && \
+   # 强制加载中文语言包
+    code-server --locale zh-cn --list-extensions && \
     \
     # 3. 配置清华pip源，安装Python依赖
     pip3 config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
