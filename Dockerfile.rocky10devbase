@@ -74,7 +74,7 @@ RUN set -eux; \
     # 开启SSH root密码登录
     sed -i 's/^PermitRootLogin no/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
-    # 【修正】RockyLinux替换passwd --stdin为通用chpasswd，避免构建报错
+    # RockyLinux替换passwd --stdin为通用chpasswd，避免构建报错
     ROOT_PWD=${PASSWORD:-Root@123456}; echo "root:${ROOT_PWD}" | chpasswd
 
 # ====================== 第四层：安装 code-server + 开发插件 + Python依赖 + 缓存清理 + 合并备份&启动脚本 ======================
@@ -94,8 +94,12 @@ RUN set -eux; \
     # 备份完整配置模板（含插件+settings+快捷键）
     cp -r /root/.local/share/code-server /root/.local/share/code-server.template && \
     # 【核心修正】启动脚本：空目录拷贝模板 + 运行时动态替换ollama地址 + 强制--locale zh-cn
-    printf '#!/bin/bash\nTARGET_CONF=/root/.local/share/code-server\n# 读取容器运行时OLLAMA_HOST，无传参则使用默认值
+    printf '#!/bin/bash
+TARGET_CONF=/root/.local/share/code-server
+
+# 读取容器运行时OLLAMA_HOST，无传参则使用默认值
 OLLAMA_RUN_HOST=${OLLAMA_HOST:-http://127.0.0.1:11434}
+
 # 仅目录存在且无任何文件时执行初始化拷贝
 if [ -d "${TARGET_CONF}" ] && [ -z "$(ls -A "${TARGET_CONF}" 2>/dev/null)" ]; then
     echo "初始化code-server默认配置（中文+黑色主题模板）"
@@ -103,6 +107,7 @@ if [ -d "${TARGET_CONF}" ] && [ -z "$(ls -A "${TARGET_CONF}" 2>/dev/null)" ]; th
     # 动态替换占位符为compose传入的ollama地址
     sed -i "s|__OLLAMA_HOST__|${OLLAMA_RUN_HOST}|g" "${TARGET_CONF}/User/settings.json"
 fi
+
 # 强制--locale zh-cn覆盖浏览器英文参数，保留trace调试日志
 exec sh -c "code-server --auth none --bind-addr 0.0.0.0:${CODE_PORT} --locale zh-cn --log trace"
 ' > /usr/local/bin/entrypoint-cs.sh && \
