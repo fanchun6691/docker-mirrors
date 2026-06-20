@@ -74,8 +74,8 @@ RUN set -eux; \
     # 开启SSH root密码登录
     sed -i 's/^PermitRootLogin no/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
-    # 仅改动密码逻辑，读取环境变量PASSWORD兜底
-    ROOT_PWD=${PASSWORD:-Root@123456}; echo "${ROOT_PWD}" | passwd --stdin root
+    # 【修正】RockyLinux替换passwd --stdin为通用chpasswd，避免构建报错
+    ROOT_PWD=${PASSWORD:-Root@123456}; echo "root:${ROOT_PWD}" | chpasswd
 
 # ====================== 第四层：安装 code-server + 开发插件 + Python依赖 + 缓存清理 + 合并备份&启动脚本 ======================
 RUN set -eux; \
@@ -91,10 +91,13 @@ RUN set -eux; \
     code-server --locale zh-cn --list-extensions && \
     pip3 config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
     pip3 install --upgrade pip pybind11 debugpy numpy ipython autopep8 && \
+    # 备份完整配置模板（含插件+settings+快捷键）
     cp -r /root/.local/share/code-server /root/.local/share/code-server.template && \
-    printf '#!/bin/bash\nTARGET_CONF=/root/.local/share/code-server\nif [ ! -d "${TARGET_CONF}/User" ] || [ -z "$(ls -A "${TARGET_CONF}" 2>/dev/null)" ]; then\n    echo "初始化code-server默认配置（中文+黑色主题模板）"\n    cp -r /root/.local/share/code-server.template/* "${TARGET_CONF}/"\nfi\nexec sh -c "code-server --auth none --bind-addr 0.0.0.0:${CODE_PORT}"\n' > /usr/local/bin/entrypoint-cs.sh && \
-    dos2unix /usr/local/bin/entrypoint-cs.sh && chmod +x /usr/local/bin/entrypoint-cs.sh && \
+    # 【核心修正】启动脚本判断逻辑：仅目录存在且内部完全空白才复制，无挂载不覆盖原生配置，挂载空卷正常初始化
+    printf '#!/bin/bash\nTARGET_CONF=/root/.local/share/code-server\n# 仅目录存在且无任何文件时执行初始化拷贝\nif [ -d "${TARGET_CONF}" ] && [ -z "$(ls -A "${TARGET_CONF}" 2>/dev/null)" ]; then\n    echo "初始化code-server默认配置（中文+黑色主题模板）"\n    cp -r /root/.local/share/code-server.template/* "${TARGET_CONF}/"\nfi\nexec sh -c "code-server --auth none --bind-addr 0.0.0.0:${CODE_PORT} --log trace"\n' > /usr/local/bin/entrypoint-cs.sh && \
+    dos2unix /usr/local/bin/entrypoint-cs.sh && \
     chmod +x /usr/local/bin/entrypoint-cs.sh && \
+    # 清理构建缓存
     rm -rf /root/.cache/pip /root/.npm /tmp/* /tmp/code-install.sh
 
 # 移除无用11434端口暴露，仅保留ssh、code-server端口
