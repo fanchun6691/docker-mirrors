@@ -94,7 +94,7 @@ RUN set -eux; \
     # 备份完整配置模板（含插件+settings+快捷键）
     cp -r /root/.local/share/code-server /root/.local/share/code-server.template && \
     # 【核心修正】启动脚本：空目录拷贝模板 + 运行时动态替换ollama地址 + 强制--locale zh-cn
-    printf '#!/bin/bash\nTARGET_CONF=/root/.local/share/code-server\nOLLAMA_RUN_HOST=${OLLAMA_HOST:-http://127.0.0.1:11434}\nif [ -d "${TARGET_CONF}" ] && [ -z "$(ls -A "${TARGET_CONF}" 2>/dev/null)" ]; then\n    echo "初始化code-server默认配置（中文+黑色主题模板）"\n    cp -r /root/.local/share/code-server.template/* "${TARGET_CONF}/"\n    sed -i "s|__OLLAMA_HOST__|${OLLAMA_RUN_HOST}|g" "${TARGET_CONF}/User/settings.json"\nfi\nVSCODE_NLS_CONFIG=\'{"locale":"zh-cn"}\'\nexec sh -c "code-server --auth none --bind-addr 0.0.0.0:${CODE_PORT} --locale zh-cn --log trace"\n' > /usr/local/bin/entrypoint-cs.sh    dos2unix /usr/local/bin/entrypoint-cs.sh && \
+    printf '#!/bin/bash\nTARGET_CONF=/root/.local/share/code-server\nOLLAMA_RUN_HOST=${OLLAMA_HOST:-http://127.0.0.1:11434}\nif [ -d "${TARGET_CONF}" ] && [ -z "$(ls -A "${TARGET_CONF}" 2>/dev/null)" ]; then\n    echo "初始化code-server默认配置（中文+黑色主题模板）"\n    cp -r /root/.local/share/code-server.template/* "${TARGET_CONF}/"\n    sed -i "s|__OLLAMA_HOST__|${OLLAMA_RUN_HOST}|g" "${TARGET_CONF}/User/settings.json"\nfi\nexec sh -c "VSCODE_NLS_CONFIG={\"locale\":\"zh-cn\"} code-server --auth none --bind-addr 0.0.0.0:${CODE_PORT} --locale zh-cn --log trace"\n' > /usr/local/bin/entrypoint-cs.sh && \
     chmod +x /usr/local/bin/entrypoint-cs.sh && \
     # 清理构建阶段pip、npm、临时安装包缓存，减小镜像体积
     rm -rf /root/.cache/pip /root/.npm /tmp/* /tmp/code-install.sh
