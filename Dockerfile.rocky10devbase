@@ -94,26 +94,10 @@ RUN set -eux; \
     # 备份完整配置模板（含插件+settings+快捷键）
     cp -r /root/.local/share/code-server /root/.local/share/code-server.template && \
     # 【核心修正】启动脚本：空目录拷贝模板 + 运行时动态替换ollama地址 + 强制--locale zh-cn
-    printf '#!/bin/bash
-TARGET_CONF=/root/.local/share/code-server
-
-# 读取容器运行时OLLAMA_HOST，无传参则使用默认值
-OLLAMA_RUN_HOST=${OLLAMA_HOST:-http://127.0.0.1:11434}
-
-# 仅目录存在且无任何文件时执行初始化拷贝
-if [ -d "${TARGET_CONF}" ] && [ -z "$(ls -A "${TARGET_CONF}" 2>/dev/null)" ]; then
-    echo "初始化code-server默认配置（中文+黑色主题模板）"
-    cp -r /root/.local/share/code-server.template/* "${TARGET_CONF}/"
-    # 动态替换占位符为compose传入的ollama地址
-    sed -i "s|__OLLAMA_HOST__|${OLLAMA_RUN_HOST}|g" "${TARGET_CONF}/User/settings.json"
-fi
-
-# 强制--locale zh-cn覆盖浏览器英文参数，保留trace调试日志
-exec sh -c "code-server --auth none --bind-addr 0.0.0.0:${CODE_PORT} --locale zh-cn --log trace"
-' > /usr/local/bin/entrypoint-cs.sh && \
+    printf '#!/bin/bash\nTARGET_CONF=/root/.local/share/code-server\n\n# 读取容器运行时OLLAMA_HOST，无传参则使用默认本地地址\nOLLAMA_RUN_HOST=${OLLAMA_HOST:-http://127.0.0.1:11434}\n\n# 判断：目录存在且内部完全空白，才复制内置模板配置\nif [ -d "${TARGET_CONF}" ] && [ -z "$(ls -A "${TARGET_CONF}" 2>/dev/null)" ]; then\n    echo "初始化code-server默认配置（中文+黑色主题模板）"\n    cp -r /root/.local/share/code-server.template/* "${TARGET_CONF}/"\n    # 将模板内占位符替换为compose传入的Ollama服务地址\n    sed -i "s|__OLLAMA_HOST__|${OLLAMA_RUN_HOST}|g" "${TARGET_CONF}/User/settings.json"\nfi\n\n# 强制指定中文locale，屏蔽浏览器前端英文参数；开启trace完整日志便于排查\nexec sh -c "code-server --auth none --bind-addr 0.0.0.0:${CODE_PORT} --locale zh-cn --log trace"\n' > /usr/local/bin/entrypoint-cs.sh && \
     dos2unix /usr/local/bin/entrypoint-cs.sh && \
     chmod +x /usr/local/bin/entrypoint-cs.sh && \
-    # 清理构建缓存
+    # 清理构建阶段pip、npm、临时安装包缓存，减小镜像体积
     rm -rf /root/.cache/pip /root/.npm /tmp/* /tmp/code-install.sh
 
 # 移除无用11434端口暴露，仅保留ssh、code-server端口
