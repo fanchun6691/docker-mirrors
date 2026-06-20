@@ -8,7 +8,7 @@ RUN set -eux; \
         git dos2unix tar gzip curl vim less procps-ng iproute iputils \
         openssh-clients openssh-server telnet \
         python3 python3-pip python3-devel \
-        "@Development Tools" gcc gcc-c++ autoconf automake libtool  gdb \
+        "@Development Tools" gcc gcc-c++ autoconf automake libtool gdb \
         ncurses-devel libpcap readline-devel libstdc++ libgcc \
         nodejs npm openssl-devel \
         glibc-langpack-en glibc-langpack-zh \
@@ -40,7 +40,7 @@ RUN set -eux; \
     echo 'sed -i "s/^#Port 22/Port ${SSH_LISTEN}/" /etc/ssh/sshd_config' >> /usr/local/bin/start_sshd.sh && \
     echo 'exec /usr/sbin/sshd -D' >> /usr/local/bin/start_sshd.sh && \
     chmod +x /usr/local/bin/start_sshd.sh && \
-    # printf写入格式化分行settings.json，使用占位符__OLLAMA_HOST__，构建阶段不填充地址
+    # printf写入格式化分行settings.json，使用占位符__OLLAMA_HOST__
     printf '{\n\
     "locale": "zh-cn",\n\
     "workbench.colorTheme": "Dark+ (default dark)",\n\
@@ -74,10 +74,10 @@ RUN set -eux; \
     # 开启SSH root密码登录
     sed -i 's/^PermitRootLogin no/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
-    # RockyLinux替换passwd --stdin为通用chpasswd，避免构建报错
+    # RockyLinux 使用chpasswd设置root密码
     ROOT_PWD=${PASSWORD:-Root@123456}; echo "root:${ROOT_PWD}" | chpasswd
 
-# ====================== 第四层：安装 code-server + 开发插件 + Python依赖 + 缓存清理 + 合并备份&启动脚本 ======================
+# ====================== 第四层：安装 code-server + 插件 + Python依赖 + 三层中文锁定全集成 ======================
 RUN set -eux; \
     curl --connect-timeout 15 --retry 3 -fsSL https://raw.githubusercontent.com/coder/code-server/main/install.sh -o /tmp/code-install.sh && \
     chmod +x /tmp/code-install.sh && \
@@ -91,22 +91,30 @@ RUN set -eux; \
     code-server --locale zh-cn --list-extensions && \
     pip3 config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
     pip3 install --upgrade pip pybind11 debugpy numpy ipython autopep8 && \
-    # 备份完整配置模板（含插件+settings+快捷键）
+    # 备份完整配置模板
     cp -r /root/.local/share/code-server /root/.local/share/code-server.template && \
-    # 【核心修正】启动脚本：空目录拷贝模板 + 运行时动态替换ollama地址 + 强制--locale zh-cn
-    printf '#!/bin/bash\nTARGET_CONF=/root/.local/share/code-server\nOLLAMA_RUN_HOST=${OLLAMA_HOST:-http://127.0.0.1:11434}\n\n# 1. 挂载目录为空时，复制模板并替换Ollama地址\nif [ -d "${TARGET_CONF}" ] && [ -z "$(ls -A "${TARGET_CONF}" 2>/dev/null)" ]; then\n    echo "初始化code-server默认配置（中文+黑色主题模板）"\n    cp -r /root/.local/share/code-server.template/* "${TARGET_CONF}/"\n    sed -i "s|__OLLAMA_HOST__|${OLLAMA_RUN_HOST}|g" "${TARGET_CONF}/User/settings.json"\nfi\n\n# 2. 底层强制锁定中文：篡改globalStorage/storage.json，最高优先级覆盖语言缓存\nSTORAGE_FILE="${TARGET_CONF}/User/globalStorage/storage.json"\nmkdir -p "${TARGET_CONF}/User/globalStorage"\nif [ -f "$STORAGE_FILE" ]; then\n    echo "检测到storage.json，强制替换locale为zh-cn"\n    sed -i '\''s/"locale":"en"/"locale":"zh-cn"/g'\'' "$STORAGE_FILE"\nelse\n    echo "新建storage.json，锁定默认中文zh-cn"\n    echo '\''{"locale":"zh-cn"}'\'' > "$STORAGE_FILE"\nfi\n\n# 补丁A：Machine机器级全局配置兜底\nMACHINE_FILE="${TARGET_CONF}/Machine/settings.json"\nmkdir -p "${TARGET_CONF}/Machine"\necho "写入Machine全局配置锁定locale=zh-cn"\necho '\''{"locale":"zh-cn"}'\'' > "$MACHINE_FILE"\n\n# 3. 双重兜底环境变量+启动参数，启动code-server\nexec sh -c "VSCODE_NLS_CONFIG={\\\"locale\\\":\\\"zh-cn\\\"} code-server --auth none --bind-addr 0.0.0.0:${CODE_PORT} --locale zh-cn --log trace"\n' > /usr/local/bin/entrypoint-cs.sh && \
+    # 启动脚本集成：storage.json + 补丁A Machine全局配置
+    printf '#!/bin/bash\nTARGET_CONF=/root/.local/share/code-server\nOLLAMA_RUN_HOST=${OLLAMA_HOST:-http://127.0.0.1:11434}\n\n# 1. 空挂载拷贝模板并替换Ollama地址\nif [ -d "${TARGET_CONF}" ] && [ -z "$(ls -A "${TARGET_CONF}" 2>/dev/null)" ]; then\n    echo "初始化code-server默认配置（中文+黑色主题模板）"\n    cp -r /root/.local/share/code-server.template/* "${TARGET_CONF}/"\n    sed -i "s|__OLLAMA_HOST__|${OLLAMA_RUN_HOST}|g" "${TARGET_CONF}/User/settings.json"\nfi\n\n# 2. 第一层锁定：globalStorage/storage.json 最高优先级缓存覆盖\nSTORAGE_FILE="${TARGET_CONF}/User/globalStorage/storage.json"\nmkdir -p "${TARGET_CONF}/User/globalStorage"\nif [ -f "$STORAGE_FILE" ]; then\n    echo "检测到storage.json，强制替换locale为zh-cn"\n    sed -i '\''s/"locale":"en"/"locale":"zh-cn"/g'\'' "$STORAGE_FILE"\nelse\n    echo "新建storage.json，锁定默认中文zh-cn"\n    echo '\''{"locale":"zh-cn"}'\'' > "$STORAGE_FILE"\nfi\n\n# 3. 补丁A 第二层锁定：Machine机器级全局配置兜底
+MACHINE_FILE="${TARGET_CONF}/Machine/settings.json"\nmkdir -p "${TARGET_CONF}/Machine"\necho "写入Machine全局配置锁定locale=zh-cn"\necho '\''{"locale":"zh-cn"}'\'' > "$MACHINE_FILE"\n\n# 启动code-server，双重环境变量+参数兜底
+exec sh -c "VSCODE_NLS_CONFIG={\\\"locale\\\":\\\"zh-cn\\\"} code-server --auth none --bind-addr 0.0.0.0:${CODE_PORT} --locale zh-cn --log trace"\n' > /usr/local/bin/entrypoint-cs.sh && \
     chmod +x /usr/local/bin/entrypoint-cs.sh && \
-    # 补丁B：核弹级修改底层product.json，全局默认中文
+    # 补丁B 第三层底层锁定：修复版精准修改product.json（仅替换文本、仅末尾追加，不破坏JSON结构）
     PROD_JSON=/usr/lib/code-server/lib/vscode/product.json; \
-    sed -i -e 's/"defaultLocale": "en"/"defaultLocale": "zh-cn"/g' -e 's/"locale": "en"/"locale": "zh-cn"/g' "$PROD_JSON"; \
-    grep -q '"defaultLocale"' "$PROD_JSON" || sed -i 's/}/,"defaultLocale":"zh-cn"}/' "$PROD_JSON"; \
-    # 清理构建缓存
+    if [ -f "$PROD_JSON" ]; then \
+        # 替换已存在的英文locale字段
+        sed -i -e 's/"defaultLocale": "en"/"defaultLocale": "zh-cn"/g' -e 's/"locale": "en"/"locale": "zh-cn"/g' "$PROD_JSON"; \
+        # 不存在defaultLocale则仅在文件最后一行}前插入，不会破坏内层JSON
+        if ! grep -q '"defaultLocale"' "$PROD_JSON"; then \
+            sed -i '$ s/}/,"defaultLocale":"zh-cn"}/' "$PROD_JSON"; \
+        fi; \
+    fi; \
+    # 清理构建缓存缩小镜像
     rm -rf /root/.cache/pip /root/.npm /tmp/* /tmp/code-install.sh
 
-# 移除无用11434端口暴露，仅保留ssh、code-server端口
+# 暴露端口
 EXPOSE 2222 8081
 
 WORKDIR /workspace
 
-# 替换原有CMD为自定义初始化启动脚本
+# 入口脚本
 CMD ["/usr/local/bin/entrypoint-cs.sh"]
