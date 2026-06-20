@@ -40,7 +40,7 @@ RUN set -eux; \
     echo 'sed -i "s/^#Port 22/Port ${SSH_LISTEN}/" /etc/ssh/sshd_config' >> /usr/local/bin/start_sshd.sh && \
     echo 'exec /usr/sbin/sshd -D' >> /usr/local/bin/start_sshd.sh && \
     chmod +x /usr/local/bin/start_sshd.sh && \
-    # printf写入格式化分行settings.json，sed替换ollama地址
+    # printf写入格式化分行settings.json，使用占位符__OLLAMA_HOST__，构建阶段不填充地址
     printf '{\n\
     "locale": "zh-cn",\n\
     "workbench.colorTheme": "Dark+ (default dark)",\n\
@@ -62,11 +62,11 @@ RUN set -eux; \
     "extensions.ignoreRecommendations": true,\n\
     "workbench.startupEditor": "none",\n\
     "continue.defaultModel": "qwen",\n\
-    "continue.ollama.baseUrl": "%s",\n\
+    "continue.ollama.baseUrl": "__OLLAMA_HOST__",\n\
     "continue.autoCompleteEnabled": true,\n\
     "continue.suggestionsEnabled": true,\n\
     "continue.chatShortcut": "ctrl+l",\n\
-    "continue.indexingEnabled": true\n}\n' | sed "s|%s|${OLLAMA_HOST}|g" > /root/.local/share/code-server/User/settings.json && \
+    "continue.indexingEnabled": true\n}\n' > /root/.local/share/code-server/User/settings.json && \
     # printf写入格式化keybindings.json
     printf '[{\n\
     "key": "ctrl+shift+b",\n\
@@ -93,8 +93,19 @@ RUN set -eux; \
     pip3 install --upgrade pip pybind11 debugpy numpy ipython autopep8 && \
     # 备份完整配置模板（含插件+settings+快捷键）
     cp -r /root/.local/share/code-server /root/.local/share/code-server.template && \
-    # 【核心修正】启动脚本判断逻辑：仅目录存在且内部完全空白才复制，无挂载不覆盖原生配置，挂载空卷正常初始化
-    printf '#!/bin/bash\nTARGET_CONF=/root/.local/share/code-server\n# 仅目录存在且无任何文件时执行初始化拷贝\nif [ -d "${TARGET_CONF}" ] && [ -z "$(ls -A "${TARGET_CONF}" 2>/dev/null)" ]; then\n    echo "初始化code-server默认配置（中文+黑色主题模板）"\n    cp -r /root/.local/share/code-server.template/* "${TARGET_CONF}/"\nfi\nexec sh -c "code-server --auth none --bind-addr 0.0.0.0:${CODE_PORT} --log trace"\n' > /usr/local/bin/entrypoint-cs.sh && \
+    # 【核心修正】启动脚本：空目录拷贝模板 + 运行时动态替换ollama地址 + 强制--locale zh-cn
+    printf '#!/bin/bash\nTARGET_CONF=/root/.local/share/code-server\n# 读取容器运行时OLLAMA_HOST，无传参则使用默认值
+OLLAMA_RUN_HOST=${OLLAMA_HOST:-http://127.0.0.1:11434}
+# 仅目录存在且无任何文件时执行初始化拷贝
+if [ -d "${TARGET_CONF}" ] && [ -z "$(ls -A "${TARGET_CONF}" 2>/dev/null)" ]; then
+    echo "初始化code-server默认配置（中文+黑色主题模板）"
+    cp -r /root/.local/share/code-server.template/* "${TARGET_CONF}/"
+    # 动态替换占位符为compose传入的ollama地址
+    sed -i "s|__OLLAMA_HOST__|${OLLAMA_RUN_HOST}|g" "${TARGET_CONF}/User/settings.json"
+fi
+# 强制--locale zh-cn覆盖浏览器英文参数，保留trace调试日志
+exec sh -c "code-server --auth none --bind-addr 0.0.0.0:${CODE_PORT} --locale zh-cn --log trace"
+' > /usr/local/bin/entrypoint-cs.sh && \
     dos2unix /usr/local/bin/entrypoint-cs.sh && \
     chmod +x /usr/local/bin/entrypoint-cs.sh && \
     # 清理构建缓存
