@@ -64,6 +64,7 @@ jobs:
       # ============================================
       - name: Build Docker image
         run: |
+          docker builder prune -f
           docker build --no-cache -f Dockerfile.rocky10devbase -t rocky10devbase:latest .
 
       # ============================================
