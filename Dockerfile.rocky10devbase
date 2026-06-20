@@ -93,17 +93,13 @@ RUN set -eux; \
     pip3 install --upgrade pip pybind11 debugpy numpy ipython autopep8 && \
     # 备份完整配置模板
     cp -r /root/.local/share/code-server /root/.local/share/code-server.template && \
-    # 启动脚本集成：storage.json + 补丁A Machine全局配置
-    printf '#!/bin/bash\nTARGET_CONF=/root/.local/share/code-server\nOLLAMA_RUN_HOST=${OLLAMA_HOST:-http://127.0.0.1:11434}\n\n# 1. 空挂载拷贝模板并替换Ollama地址\nif [ -d "${TARGET_CONF}" ] && [ -z "$(ls -A "${TARGET_CONF}" 2>/dev/null)" ]; then\n    echo "初始化code-server默认配置（中文+黑色主题模板）"\n    cp -r /root/.local/share/code-server.template/* "${TARGET_CONF}/"\n    sed -i "s|__OLLAMA_HOST__|${OLLAMA_RUN_HOST}|g" "${TARGET_CONF}/User/settings.json"\nfi\n\n# 2. 第一层锁定：globalStorage/storage.json 最高优先级缓存覆盖\nSTORAGE_FILE="${TARGET_CONF}/User/globalStorage/storage.json"\nmkdir -p "${TARGET_CONF}/User/globalStorage"\nif [ -f "$STORAGE_FILE" ]; then\n    echo "检测到storage.json，强制替换locale为zh-cn"\n    sed -i '\''s/"locale":"en"/"locale":"zh-cn"/g'\'' "$STORAGE_FILE"\nelse\n    echo "新建storage.json，锁定默认中文zh-cn"\n    echo '\''{"locale":"zh-cn"}'\'' > "$STORAGE_FILE"\nfi\n\n# 3. 补丁A 第二层锁定：Machine机器级全局配置兜底
-MACHINE_FILE="${TARGET_CONF}/Machine/settings.json"\nmkdir -p "${TARGET_CONF}/Machine"\necho "写入Machine全局配置锁定locale=zh-cn"\necho '\''{"locale":"zh-cn"}'\'' > "$MACHINE_FILE"\n\n# 启动code-server，双重环境变量+参数兜底
-exec sh -c "VSCODE_NLS_CONFIG={\\\"locale\\\":\\\"zh-cn\\\"} code-server --auth none --bind-addr 0.0.0.0:${CODE_PORT} --locale zh-cn --log trace"\n' > /usr/local/bin/entrypoint-cs.sh && \
+    # 修复点：内部全部用\n换行，无裸换行，不会被Docker解析为指令
+    printf '#!/bin/bash\nTARGET_CONF=/root/.local/share/code-server\nOLLAMA_RUN_HOST=${OLLAMA_HOST:-http://127.0.0.1:11434}\n\n# 1. 空挂载拷贝模板并替换Ollama地址\nif [ -d "${TARGET_CONF}" ] && [ -z "$(ls -A "${TARGET_CONF}" 2>/dev/null)" ]; then\n    echo "初始化code-server默认配置（中文+黑色主题模板）"\n    cp -r /root/.local/share/code-server.template/* "${TARGET_CONF}/"\n    sed -i "s|__OLLAMA_HOST__|${OLLAMA_RUN_HOST}|g" "${TARGET_CONF}/User/settings.json"\nfi\n\n# 2. 第一层锁定：globalStorage/storage.json 最高优先级缓存覆盖\nSTORAGE_FILE="${TARGET_CONF}/User/globalStorage/storage.json"\nmkdir -p "${TARGET_CONF}/User/globalStorage"\nif [ -f "$STORAGE_FILE" ]; then\n    echo "检测到storage.json，强制替换locale为zh-cn"\n    sed -i '\''s/"locale":"en"/"locale":"zh-cn"/g'\'' "$STORAGE_FILE"\nelse\n    echo "新建storage.json，锁定默认中文zh-cn"\n    echo '\''{"locale":"zh-cn"}'\'' > "$STORAGE_FILE"\nfi\n\n# 3. 补丁A 第二层锁定：Machine机器级全局配置兜底\nMACHINE_FILE="${TARGET_CONF}/Machine/settings.json"\nmkdir -p "${TARGET_CONF}/Machine"\necho "写入Machine全局配置锁定locale=zh-cn"\necho '\''{"locale":"zh-cn"}'\'' > "$MACHINE_FILE"\n\n# 启动code-server，双重环境变量+参数兜底\nexec sh -c "VSCODE_NLS_CONFIG={\\\"locale\\\":\\\"zh-cn\\\"} code-server --auth none --bind-addr 0.0.0.0:${CODE_PORT} --locale zh-cn --log trace"\n' > /usr/local/bin/entrypoint-cs.sh && \
     chmod +x /usr/local/bin/entrypoint-cs.sh && \
     # 补丁B 第三层底层锁定：修复版精准修改product.json（仅替换文本、仅末尾追加，不破坏JSON结构）
     PROD_JSON=/usr/lib/code-server/lib/vscode/product.json; \
     if [ -f "$PROD_JSON" ]; then \
-        # 替换已存在的英文locale字段
         sed -i -e 's/"defaultLocale": "en"/"defaultLocale": "zh-cn"/g' -e 's/"locale": "en"/"locale": "zh-cn"/g' "$PROD_JSON"; \
-        # 不存在defaultLocale则仅在文件最后一行}前插入，不会破坏内层JSON
         if ! grep -q '"defaultLocale"' "$PROD_JSON"; then \
             sed -i '$ s/}/,"defaultLocale":"zh-cn"}/' "$PROD_JSON"; \
         fi; \
