@@ -27,15 +27,6 @@ ENV \
     CODE_SERVER_BIND="0.0.0.0:${CODE_PORT}" \
     OLLAMA_HOST=http://127.0.0.1:11434
 
-# ====================== 第二层：安装固定稳定版 CMake（保持直连github不变） ======================
-RUN set -eux; \
-    curl --connect-timeout 15 --retry 3 -L -o cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v3.31.3/cmake-3.31.3-linux-x86_64.tar.gz && \
-    tar -zxf cmake.tar.gz -C /usr/local/ && \
-    mv /usr/local/cmake-3.31.3-linux-x86_64 /usr/local/cmake && \
-    rm -rf cmake.tar.gz
-
-ENV PATH="/usr/local/cmake/bin:${PATH}"
-
 # ====================== 第三层：SSH配置、别名、启动脚本、printf写入配置、开启root密码登录 ======================
 RUN set -eux; \
     mkdir -p /root/.ssh /root/.local/share/code-server/User && \
@@ -49,39 +40,37 @@ RUN set -eux; \
     echo 'sed -i "s/^#Port 22/Port ${SSH_LISTEN}/" /etc/ssh/sshd_config' >> /usr/local/bin/start_sshd.sh && \
     echo 'exec /usr/sbin/sshd -D' >> /usr/local/bin/start_sshd.sh && \
     chmod +x /usr/local/bin/start_sshd.sh && \
-    # printf写入settings.json，维持你原有printf+sed逻辑不变
-    printf '{\
-    "locale": "zh-cn",\
-    "workbench.colorTheme": "Dark+ (default dark)",\
-    "editor.fontSize": 14,\
-    "editor.tabSize": 4,\
-    "editor.insertSpaces": true,\
-    "editor.formatOnSave": true,\
-    "files.encoding": "utf8",\
-    "files.eol": "\\n",\
-    "terminal.integrated.defaultProfile.linux": "bash",\
-    "C_Cpp.default.compilerPath": "/usr/bin/g++",\
-    "C_Cpp.intelliSenseEngine": "default",\
-    "cmake.sourceDirectory": "${workspaceFolder}",\
-    "cmake.buildDirectory": "${workspaceFolder}/build",\
-    "cmake.generator": "Unix Makefiles",\
-    "python.defaultInterpreterPath": "/usr/bin/python3",\
-    "python.formatting.provider": "autopep8",\
-    "python.analysis.autoImportCompletions": true,\
-    "extensions.ignoreRecommendations": true,\
-    "workbench.startupEditor": "none",\
-    "continue.defaultModel": "qwen",\
-    "continue.ollama.baseUrl": "%s",\
-    "continue.autoCompleteEnabled": true,\
-    "continue.suggestionsEnabled": true,\
-    "continue.chatShortcut": "ctrl+l",\
-    "continue.indexingEnabled": true\
-}\n' | sed "s|%s|${OLLAMA_HOST}|g" > /root/.local/share/code-server/User/settings.json && \
-    # printf写入keybindings.json，末尾带续行符&&\ 修复语法报错
-    printf '[{\
-    "key": "ctrl+shift+b",\
-    "command": "cmake.build"\
-}]\n' > /root/.local/share/code-server/User/keybindings.json && \
+    # printf写入格式化分行settings.json，sed替换ollama地址
+    printf '{\n\
+    "locale": "zh-cn",\n\
+    "workbench.colorTheme": "Dark+ (default dark)",\n\
+    "editor.fontSize": 14,\n\
+    "editor.tabSize": 4,\n\
+    "editor.insertSpaces": true,\n\
+    "editor.formatOnSave": true,\n\
+    "files.encoding": "utf8",\n\
+    "files.eol": "\\\\n",\n\
+    "terminal.integrated.defaultProfile.linux": "bash",\n\
+    "C_Cpp.default.compilerPath": "/usr/bin/g++",\n\
+    "C_Cpp.intelliSenseEngine": "default",\n\
+    "cmake.sourceDirectory": "${workspaceFolder}",\n\
+    "cmake.buildDirectory": "${workspaceFolder}/build",\n\
+    "cmake.generator": "Unix Makefiles",\n\
+    "python.defaultInterpreterPath": "/usr/bin/python3",\n\
+    "python.formatting.provider": "autopep8",\n\
+    "python.analysis.autoImportCompletions": true,\n\
+    "extensions.ignoreRecommendations": true,\n\
+    "workbench.startupEditor": "none",\n\
+    "continue.defaultModel": "qwen",\n\
+    "continue.ollama.baseUrl": "%s",\n\
+    "continue.autoCompleteEnabled": true,\n\
+    "continue.suggestionsEnabled": true,\n\
+    "continue.chatShortcut": "ctrl+l",\n\
+    "continue.indexingEnabled": true\n}\n' | sed "s|%s|${OLLAMA_HOST}|g" > /root/.local/share/code-server/User/settings.json && \
+    # printf写入格式化keybindings.json
+    printf '[{\n\
+    "key": "ctrl+shift+b",\n\
+    "command": "cmake.build"\n}]\n' > /root/.local/share/code-server/User/keybindings.json && \
     # 开启SSH root密码登录
     sed -i 's/^PermitRootLogin no/PermitRootLogin yes/' /etc/ssh/sshd_config && \
     sed -i 's/^#PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
