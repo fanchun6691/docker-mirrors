@@ -103,7 +103,9 @@ RUN set -eux; \
     pip3 config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
     pip3 install --upgrade pip pybind11 debugpy numpy ipython autopep8 && \
     cp -r /root/.local/share/code-server /root/.local/share/code-server.template && \
-    printf '#!/bin/bash\\nTARGET_CONF=/root/.local/share/code-server\\nif [ ! -d "\\\\${TARGET_CONF}/User" ] || [ -z "$(ls -A "\\\\${TARGET_CONF}" 2>/dev/null)" ]; then\\n    echo "初始化code-server默认配置（中文+黑色主题模板）"\\n    cp -r /root/.local/share/code-server.template/* "\\\\${TARGET_CONF}/"\\nfi\\nexec sh -c "code-server --auth none --bind-addr 0.0.0.0:\\\\${CODE_PORT}"\\n' > /usr/local/bin/entrypoint-cs.sh && chmod +x /usr/local/bin/entrypoint-cs.sh && \
+    printf '#!/bin/bash\nTARGET_CONF=/root/.local/share/code-server\nif [ ! -d "\\\\${TARGET_CONF}/User" ] || [ -z "$(ls -A "\\\\${TARGET_CONF}" 2>/dev/null)" ]; then\n    echo "初始化code-server默认配置（中文+黑色主题模板）"\n    cp -r /root/.local/share/code-server.template/* "\\\\${TARGET_CONF}/"\nfi\nexec sh -c "code-server --auth none --bind-addr 0.0.0.0:\\\\${CODE_PORT}"\n' > /usr/local/bin/entrypoint-cs.sh && \
+    dos2unix /usr/local/bin/entrypoint-cs.sh && \
+    chmod +x /usr/local/bin/entrypoint-cs.sh && \
     rm -rf /root/.cache/pip /root/.npm /tmp/* /tmp/code-install.sh
 
 # 移除无用11434端口暴露，仅保留ssh、code-server端口
