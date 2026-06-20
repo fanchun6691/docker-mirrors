@@ -112,12 +112,12 @@ RUN set -eux; \
     \
     # 4. 备份镜像内置完整code-server默认配置模板
     cp -r /root/.local/share/code-server /root/.local/share/code-server.template && \
-    # 生成初始化启动脚本，修复变量转义 \${CODE_PORT}
+    # 生成初始化启动脚本：所有$全部转义\\$，避免构建时解析
     printf '#!/bin/bash\n\
 # 目标挂载目录\nTARGET_CONF=/root/.local/share/code-server\n\
-# 判断用户配置目录不存在/为空，则从镜像模板复制默认配置\nif [ ! -d "${TARGET_CONF}/User" ] || [ -z "$(ls -A "${TARGET_CONF}" 2>/dev/null)" ]; then\n\
+# 判断用户配置目录不存在/为空，则从镜像模板复制默认配置\nif [ ! -d "\\${TARGET_CONF}/User" ] || [ -z "$(ls -A "\\${TARGET_CONF}" 2>/dev/null)" ]; then\n\
     echo "初始化code-server默认配置（中文+黑色主题模板）"\n\
-    cp -r /root/.local/share/code-server.template/* "${TARGET_CONF}/"\n\
+    cp -r /root/.local/share/code-server.template/* "\\${TARGET_CONF}/"\n\
 fi\n\
 # 执行原有code-server启动命令\nexec sh -c "code-server --auth none --bind-addr 0.0.0.0:\\${CODE_PORT}"\n' > /usr/local/bin/entrypoint-cs.sh && chmod +x /usr/local/bin/entrypoint-cs.sh && \
     \
