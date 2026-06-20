@@ -88,7 +88,7 @@ RUN set -eux; \
     # 仅改动密码逻辑，读取环境变量PASSWORD兜底
     ROOT_PWD=${PASSWORD:-Root@123456}; echo "${ROOT_PWD}" | passwd --stdin root
 
-# ====================== 第四层：安装 code-server + 开发插件 + Python依赖 + 缓存清理 ======================
+# ====================== 第四层：安装 code-server + 开发插件 + Python依赖 + 缓存清理 + 合并备份&启动脚本 ======================
 RUN set -eux; \
     # 1. 下载并安装 code-server
     curl --connect-timeout 15 --retry 3 -fsSL https://raw.githubusercontent.com/coder/code-server/main/install.sh -o /tmp/code-install.sh && \
@@ -103,14 +103,25 @@ RUN set -eux; \
     code-server --install-extension continue.continue && \
     # 预装中文语言包，配合locale:zh-cn开机自动中文界面
     code-server --install-extension MS-CEINTL.vscode-language-pack-zh-hans && \
-   # 强制加载中文语言包
+    # 强制加载中文语言包
     code-server --locale zh-cn --list-extensions && \
     \
     # 3. 配置清华pip源，安装Python依赖
     pip3 config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
     pip3 install --upgrade pip pybind11 debugpy numpy ipython autopep8 && \
     \
-    # 4. 全局临时文件缓存清理
+    # 4. 备份镜像内置完整code-server默认配置模板
+    cp -r /root/.local/share/code-server /root/.local/share/code-server.template && \
+    # 生成初始化启动脚本，逻辑完全不变
+    printf '#!/bin/bash\n\
+# 目标挂载目录\nTARGET_CONF=/root/.local/share/code-server\n\
+# 判断用户配置目录不存在/为空，则从镜像模板复制默认配置\nif [ ! -d "${TARGET_CONF}/User" ] || [ -z "$(ls -A "${TARGET_CONF}" 2>/dev/null)" ]; then\n\
+    echo "初始化code-server默认配置（中文+黑色主题模板）"\n\
+    cp -r /root/.local/share/code-server.template/* "${TARGET_CONF}/"\n\
+fi\n\
+# 执行原有code-server启动命令\nexec sh -c "code-server --auth none --bind-addr 0.0.0.0:${CODE_PORT}"\n' > /usr/local/bin/entrypoint-cs.sh && chmod +x /usr/local/bin/entrypoint-cs.sh && \
+    \
+    # 5. 全局临时文件缓存清理
     rm -rf /root/.cache/pip /root/.npm /tmp/* /tmp/code-install.sh
 
 # 移除无用11434端口暴露，仅保留ssh、code-server端口
@@ -118,5 +129,5 @@ EXPOSE 2222 8081
 
 WORKDIR /workspace
 
-# 修复：CMD数组无法解析变量，改用shell形式加载环境变量；原--auth none兼容PASSWORD空变量
-CMD ["sh", "-c", "code-server --auth none --bind-addr 0.0.0.0:${CODE_PORT}"]
+# 替换原有CMD为自定义初始化启动脚本
+CMD ["/usr/local/bin/entrypoint-cs.sh"]
