@@ -52,6 +52,7 @@ RUN set -eux; \
     # printf写入settings.json，维持你原有printf+sed逻辑不变
     printf '{\
     "locale": "zh-cn",\
+    "workbench.colorTheme": "Dark+ (default dark)",\
     "editor.fontSize": 14,\
     "editor.tabSize": 4,\
     "editor.insertSpaces": true,\
@@ -100,6 +101,8 @@ RUN set -eux; \
     code-server --install-extension twxs.cmake && \
     code-server --install-extension llvm-vs-code-extensions.vscode-clangd && \
     code-server --install-extension continue.continue && \
+    # 预装中文语言包，配合locale:zh-cn开机自动中文界面
+    code-server --install-extension MS-CEINTL.vscode-language-pack-zh-hans && \
     \
     # 3. 配置清华pip源，安装Python依赖
     pip3 config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple && \
