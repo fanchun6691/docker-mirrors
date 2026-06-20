@@ -63,7 +63,8 @@ jobs:
       # ============================================
       - name: Build Docker image
         run: |
-          docker build --no-cache -f Dockerfile.rocky10prodbase -t rocky10prodbase:latest .
+          docker builder prune -f
+          docker build --no-cache -f Dockerfile.rocky10devbase -t rocky10devbase:latest .
 
       # ============================================
       # 6. 保存镜像为 tar.gz
